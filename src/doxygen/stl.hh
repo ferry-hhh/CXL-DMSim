@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 The Regents of The University of Michigan
+ * Copyright (c) 2003-2005 The Regents of The University of Michigan
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,76 +25,45 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: Steve Reinhardt
+ * Authors: Erik Hallnor
+ *          Nathan Binkert
  */
 
 /**
  * @file
- * Declaration of a non-full system Page Table.
+ * Dummy definitions of STL classes to pick up relationships in doxygen.
  */
 
-#ifndef __PAGE_TABLE__
-#define __PAGE_TABLE__
+namespace std {
 
-#include <string>
-
-#include "arch/faults.hh"
-#include "arch/isa_traits.hh"
-#include "base/hashmap.hh"
-#include "base/trace.hh"
-#include "mem/request.hh"
-#include "mem/packet.hh"
-#include "sim/sim_object.hh"
-
-class System;
-
-/**
- * Page Table Declaration.
- */
-class PageTable
-{
-  protected:
-    m5::hash_map<Addr,Addr> pTable;
-
-    struct cacheElement {
-        Addr paddr;
-        Addr vaddr;
-    } ;
-
-    struct cacheElement pTableCache[3];
-
-    const Addr pageSize;
-    const Addr offsetMask;
-
-    System *system;
-
+/** STL vector class*/
+template <class T> class vector {
   public:
-
-    PageTable(System *_system, Addr _pageSize = TheISA::VMPageSize);
-
-    ~PageTable();
-
-    Addr pageAlign(Addr a)  { return (a & ~offsetMask); }
-    Addr pageOffset(Addr a) { return (a &  offsetMask); }
-
-    Fault page_check(Addr addr, int size) const;
-
-    void allocate(Addr vaddr, int size);
-
-    /**
-     * Translate function
-     * @param vaddr The virtual address.
-     * @return Physical address from translation.
-     */
-    bool translate(Addr vaddr, Addr &paddr);
-
-    /**
-     * Perform a translation on the memory request, fills in paddr
-     * field of mem_req.
-     * @param req The memory request.
-     */
-    Fault translate(RequestPtr &req);
-
+    /** Dummy Item */
+    T item;
 };
 
-#endif
+/** STL deque class */
+template <class T> class deque {
+  public:
+    /** Dummy Item */
+    T item;
+};
+
+/** STL list class */
+template <class T> class list {
+  public:
+    /** Dummy Item */
+    T item;
+};
+
+/** STL pair class */
+template <class X, class Y> class pair {
+  public:
+    /** Dummy Item */
+    X item1;
+    /** Dummy Item */
+    Y item2;
+};
+
+}
