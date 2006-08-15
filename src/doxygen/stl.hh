@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2005 The Regents of The University of Michigan
+ * Copyright (c) 2003-2005 The Regents of The University of Michigan
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,60 +25,45 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: Ali Saidi
+ * Authors: Erik Hallnor
  *          Nathan Binkert
  */
 
-#include "base/misc.hh"
-#include "dev/platform.hh"
-#include "sim/builder.hh"
-#include "sim/sim_exit.hh"
+/**
+ * @file
+ * Dummy definitions of STL classes to pick up relationships in doxygen.
+ */
 
-using namespace std;
-using namespace TheISA;
+namespace std {
 
-Platform::Platform(const string &name, IntrControl *intctrl)
-    : SimObject(name), intrctrl(intctrl)
-{
+/** STL vector class*/
+template <class T> class vector {
+  public:
+    /** Dummy Item */
+    T item;
+};
+
+/** STL deque class */
+template <class T> class deque {
+  public:
+    /** Dummy Item */
+    T item;
+};
+
+/** STL list class */
+template <class T> class list {
+  public:
+    /** Dummy Item */
+    T item;
+};
+
+/** STL pair class */
+template <class X, class Y> class pair {
+  public:
+    /** Dummy Item */
+    X item1;
+    /** Dummy Item */
+    Y item2;
+};
+
 }
-
-Platform::~Platform()
-{
-}
-
-void
-Platform::postPciInt(int line)
-{
-   panic("No PCI interrupt support in platform.");
-}
-
-void
-Platform::clearPciInt(int line)
-{
-   panic("No PCI interrupt support in platform.");
-}
-
-Addr
-Platform::pciToDma(Addr pciAddr) const
-{
-   panic("No PCI dma support in platform.");
-}
-
-void
-Platform::registerPciDevice(uint8_t bus, uint8_t dev, uint8_t func, uint8_t intr)
-{
-    uint32_t bdf = bus << 16 | dev << 8 | func << 0;
-    if (pciDevices.find(bdf) != pciDevices.end())
-        fatal("Two PCI devices have same bus:device:function\n");
-
-    if (intLines.test(intr))
-        fatal("Two PCI devices have same interrupt line: %d\n", intr);
-
-    pciDevices.insert(bdf);
-
-    intLines.set(intr);
-}
-
-
-DEFINE_SIM_OBJECT_CLASS_NAME("Platform", Platform)
-
