@@ -148,7 +148,12 @@ class MemCmd
         HTMAbort,
         // Tlb shootdown
         TlbiExtSync,
-        NUM_MEM_CMDS
+        NUM_MEM_CMDS,
+        // cxl.mem extended
+        M2SReq,
+        M2SRwD,
+        S2MNDR,
+        S2MDRS
     };
 
   private:
