@@ -1,3 +1,4 @@
+#include "base/trace.hh"
 #include "dev/storage/cxl_memory.hh"
 #include "debug/CxlMemory.hh"
 
@@ -11,31 +12,30 @@ CxlMemory::CxlMemory(const Param &p)
     cxl_mem_latency_(p.cxl_mem_latency) {}
 
 Tick CxlMemory::read(PacketPtr pkt) {
-    printf("start read\n");
+    DPRINTF(CxlMemory, "read address : (%lx, %lx)", pkt->getAddr(),
+            pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
-    printf("read latency_ + cxl_latency=%ld\n", latency_ + cxl_latency);
     return latency_ + cxl_latency;
 }
 
 Tick CxlMemory::write(PacketPtr pkt) {
-    printf("start write\n");
+    DPRINTF(CxlMemory, "write address : (%lx, %lx)", pkt->getAddr(),
+            pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
-    printf("read latency_ + cxl_latency=%ld\n", latency_ + cxl_latency);
     return latency_ + cxl_latency;
 }
 
 AddrRangeList CxlMemory::getAddrRanges() const {
-    printf("getAddrRanges……\n");
     return PciDevice::getAddrRanges();
 }
 
 Tick CxlMemory::resolve_cxl_mem(PacketPtr pkt) {
-    if (pkt->cmd == MemCmd::M2SReq) {
+    if (pkt->cmd == MemCmd::ReadReq) {
         assert(pkt->isRead());
         assert(pkt->needsResponse());
-    } else if (pkt->cmd == MemCmd::M2SRwD) {
+    } else if (pkt->cmd == MemCmd::WriteReq) {
         assert(pkt->isWrite());
         assert(pkt->needsResponse());
     }
@@ -43,22 +43,11 @@ Tick CxlMemory::resolve_cxl_mem(PacketPtr pkt) {
 }
 
 CxlMemory::Memory::Memory(const AddrRange& range) : range(range) {
-    printf("CXLMemory::Memory init start!\n");
-    printf("range start:%lx, size:%lx, end:%lx\n", range.start(), range.size(), range.end());
-    try
-    {
-        pmemAddr = new uint8_t[range.size()];
-    }
-    catch(const std::bad_alloc& e)
-    {
-        printf("memory error");
-        std::cerr << e.what() << '\n';
-    }
-    printf("CXLMemory::Memory init finish!\n");
+    pmemAddr = new uint8_t[range.size()];
 }
 
 void CxlMemory::Memory::access(PacketPtr pkt) {
-    printf("access start\n");
+    range = AddrRange(0x100000000, 0x100000000 + 0x7000000);
     if (pkt->cacheResponding()) {
         DPRINTF(CxlMemory, "Cache responding to %#llx: not responding\n", pkt->getAddr());
         return;
@@ -70,11 +59,11 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
     }
     
     assert(pkt->getAddrRange().isSubset(range));
-    printf("access run 70\n");
+
     uint8_t* host_addr = toHostAddr(pkt->getAddr());
-    printf("access run 72\n");
+
     if (pkt->cmd == MemCmd::SwapReq) {
-        printf("access run 74\n");
+
         if (pkt->isAtomicOp()) {
             if (pmemAddr) {
                 pkt->setData(host_addr);
@@ -112,13 +101,11 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
             assert(!pkt->req->isInstFetch());
         }
     } else if (pkt->isRead()) {
-        printf("access run 112\n");
         assert(!pkt->isWrite());
         if (pmemAddr) {
             pkt->setData(host_addr);
         }
     } else if (pkt->isInvalidate() || pkt->isClean()) {
-        printf("access run 118\n");
         assert(!pkt->isWrite());
         // in a fastmem system invalidating and/or cleaning packets
         // can be seen due to cache maintenance requests
@@ -132,15 +119,11 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
         }
         assert(!pkt->req->isInstFetch());
     } else {
-        printf("access run 132\n");
         panic("Unexpected packet %s", pkt->print());
     }
-    printf("access run 135\n");
     if (pkt->needsResponse()) {
         pkt->makeResponse();
     }
-    printf("access end\n");
-    
 }
 
 } // namespace gem5
