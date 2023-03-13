@@ -8,10 +8,12 @@ CxlMemory::CxlMemory(const Param &p)
     : PciDevice(p),
     mem_(RangeSize(p.BAR0->addr(), p.BAR0->size())),
     latency_(p.latency),
-    cxl_mem_latency_(p.cxl_mem_latency) {}
+    cxl_mem_latency_(p.cxl_mem_latency) {DPRINTF(CxlMemory, "start init\n");}
 
 Tick CxlMemory::read(PacketPtr pkt) {
+    DPRINTF(CxlMemory, "start read\n");
     printf("start read\n");
+    std::cout << csprintf("1[CXL] packet cmd=%s\n", pkt->cmdString());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
     printf("read latency_ + cxl_latency=%ld\n", latency_ + cxl_latency);
@@ -19,7 +21,9 @@ Tick CxlMemory::read(PacketPtr pkt) {
 }
 
 Tick CxlMemory::write(PacketPtr pkt) {
+    DPRINTF(CxlMemory, "start write\n");
     printf("start write\n");
+    std::cout << csprintf("2[CXL] packet cmd=%s\n", pkt->cmdString());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
     printf("read latency_ + cxl_latency=%ld\n", latency_ + cxl_latency);
@@ -27,7 +31,6 @@ Tick CxlMemory::write(PacketPtr pkt) {
 }
 
 AddrRangeList CxlMemory::getAddrRanges() const {
-    printf("getAddrRanges……\n");
     return PciDevice::getAddrRanges();
 }
 
@@ -72,6 +75,7 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
     assert(pkt->getAddrRange().isSubset(range));
     printf("access run 70\n");
     uint8_t* host_addr = toHostAddr(pkt->getAddr());
+    printf("host_addr:%x\n", host_addr);
     printf("access run 72\n");
     if (pkt->cmd == MemCmd::SwapReq) {
         printf("access run 74\n");

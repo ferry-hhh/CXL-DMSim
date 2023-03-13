@@ -39,10 +39,10 @@ namespace gem5
         Tick cxl_mem_latency_;
         
         public:
-        virtual Tick read(PacketPtr pkt) override;
-        virtual Tick write(PacketPtr pkt) override;
+        Tick read(PacketPtr pkt) override;
+        Tick write(PacketPtr pkt) override;
 
-        virtual AddrRangeList getAddrRanges() const override;
+        AddrRangeList getAddrRanges() const override;
 
         Tick resolve_cxl_mem(PacketPtr ptk);
         using Param = CxlMemoryParams;
