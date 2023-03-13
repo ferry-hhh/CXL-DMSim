@@ -1,6 +1,7 @@
 from m5.params import *
 from m5.objects.PciDevice import *
 
+
 class CxlMemory(PciDevice):
     type = 'CxlMemory'
     cxx_header = "dev/storage/cxl_memory.hh"
