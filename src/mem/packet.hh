@@ -148,12 +148,15 @@ class MemCmd
         HTMAbort,
         // Tlb shootdown
         TlbiExtSync,
-        NUM_MEM_CMDS,
         // cxl.mem extended
-        M2SReq,
-        M2SRwD,
-        S2MNDR,
-        S2MDRS
+        /** enum type:it is necessary to align the command item here 
+         *  with the attribute item in the .cc file.
+         */
+        M2SReq, // Requset              (read)
+        S2MDRS, // Data Response        (read resp)
+        M2SRwD, // Requset with Data    (write)
+        S2MNDR, // No Data Response     (write resp)
+        NUM_MEM_CMDS
     };
 
   private:

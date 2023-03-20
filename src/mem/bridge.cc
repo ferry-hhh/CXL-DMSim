@@ -49,6 +49,7 @@
 #include "base/trace.hh"
 #include "debug/Bridge.hh"
 #include "params/Bridge.hh"
+#include "debug/CxlMemory.hh"
 
 namespace gem5
 {
@@ -64,6 +65,8 @@ Bridge::BridgeResponsePort::BridgeResponsePort(const std::string& _name,
       outstandingResponses(0), retryReq(false), respQueueLimit(_resp_limit),
       sendEvent([this]{ trySendTiming(); }, _name)
 {
+    for (auto i=ranges.begin(); i!=ranges.end(); i++)
+        DPRINTF(CxlMemory, "BridgeResponsePort.ranges = %s\n", i->to_string());
 }
 
 Bridge::BridgeRequestPort::BridgeRequestPort(const std::string& _name,
@@ -343,8 +346,18 @@ Bridge::BridgeResponsePort::recvAtomic(PacketPtr pkt)
 {
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
-
-    return delay * bridge.clockPeriod() + memSidePort.sendAtomic(pkt);
+    if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x200000000) {
+        DPRINTF(CxlMemory, "the cmd of pkt is %s, addrRange is %s.\n",
+            pkt->cmd.toString(), pkt->getAddrRange().to_string());
+        if (pkt->cmd == MemCmd::ReadReq) { pkt->cmd = MemCmd::M2SReq; }
+        else if(pkt->cmd == MemCmd::WriteReq) { pkt->cmd = MemCmd::M2SRwD; }
+        else { DPRINTF(CxlMemory, "the cmd of packet is %s, not a read or write.\n", pkt->cmd.toString()); }
+        Tick cxl_delay = 2;
+        return delay * bridge.clockPeriod() + memSidePort.sendAtomic(pkt) + cxl_delay;
+    }
+    else {
+        return delay * bridge.clockPeriod() + memSidePort.sendAtomic(pkt);
+    }
 }
 
 void

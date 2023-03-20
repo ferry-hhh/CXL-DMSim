@@ -64,7 +64,7 @@ if env['CONF']['USE_EFENCE']:
 # Children need to see the environment
 Export('env')
 
-env.CompilationDatabase('compile_commands.json')
+# env.CompilationDatabase('compile_commands.json')
 
 build_env = list(env['CONF'].items())
 

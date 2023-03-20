@@ -21,5 +21,5 @@ class CxlMemory(PciDevice):
     InterruptPin = 0x01
 
     # Primary
-    BAR0 = PciMemBar(size='128MiB')
+    BAR0 = PciMemBar(size='4GiB')
     BAR1 = PciMemUpperBar()

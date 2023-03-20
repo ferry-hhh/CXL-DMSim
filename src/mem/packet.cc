@@ -238,8 +238,14 @@ MemCmd::commandInfo[] =
     { {IsRead, IsRequest}, InvalidCmd, "HTMAbort" },
     { {IsRequest}, InvalidCmd, "TlbiExtSync" },
     // for cxl.mem extended
+    /* M2SReq */
     { {IsRead, IsRequest, NeedsResponse}, S2MDRS, "M2SReq"},
-    { {IsWrite, IsRequest, NeedsResponse}, S2MNDR, "M2SRwd"}
+    /* S2MDRS */
+    { {IsRead, IsResponse, HasData}, InvalidCmd, "S2MDRS" },
+    /* M2SRwd */
+    { {IsWrite, IsRequest, NeedsResponse, HasData}, S2MNDR, "M2SRwd"},
+    /* S2MNDR */
+    { {IsWrite, IsResponse}, InvalidCmd, "S2MNDR" }
 };
 
 AddrRange

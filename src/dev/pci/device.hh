@@ -314,7 +314,7 @@ class PciDevice : public DmaDevice
      *             only valid if return value is true.
      * @retval offs The offset from the base address,
      *              only valid if return value is true.
-     * @return True iff address maps to a base address register's region.
+     * @return True if address maps to a base address register's region.
      */
     bool
     getBAR(Addr addr, int &num, Addr &offs)

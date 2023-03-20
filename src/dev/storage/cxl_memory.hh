@@ -16,10 +16,12 @@ namespace gem5
             uint8_t* pmemAddr = nullptr;
             bool inAddrMap = true;
             const std::string name_ = "CxlMemory::Memory";
+            CxlMemory& owner;
+            public:
 
         public:
-        Memory(const AddrRange& range);
-        inline uint8_t* toHostAddr(Addr addr) const { return pmemAddr + addr - range.start(); }
+        Memory(const AddrRange& range, CxlMemory& owner);
+        inline uint8_t* toHostAddr(Addr addr) const { return pmemAddr + addr - range.start(); } // 这里计算的地址其实是要读/写的pmem的地址
         const std::string& name() const { return name_; }
         uint64_t size() const { return range.size(); }
         Addr start() const { return range.start(); }

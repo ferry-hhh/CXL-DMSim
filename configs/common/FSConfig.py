@@ -473,8 +473,8 @@ def connectX86ClassicSystem(x86_sys, numCPUs):
     #  3) everything in the IO address range up to the local APIC, and
     #  4) then the entire PCI address space and beyond.
     x86_sys.bridge.ranges = [
-        AddrRange(0xC0000000, 0xFFFF0000),
-        AddrRange(0x100000000, 0x300000000),
+        AddrRange(0xC0000000, 0xFFFF0000),      # (3GB,4GB-64kB)
+        AddrRange(0x100000000, 0x300000000),    # (4GB,12GB)
         AddrRange(IO_address_space_base, interrupts_address_space_base - 1),
         AddrRange(pci_config_address_space_base, Addr.max),
     ]
