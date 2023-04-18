@@ -353,7 +353,11 @@ Bridge::BridgeResponsePort::recvAtomic(PacketPtr pkt)
         else if(pkt->cmd == MemCmd::WriteReq) { pkt->cmd = MemCmd::M2SRwD; }
         else { DPRINTF(CxlMemory, "the cmd of packet is %s, not a read or write.\n", pkt->cmd.toString()); }
         Tick cxl_delay = 2;
-        return delay * bridge.clockPeriod() + memSidePort.sendAtomic(pkt) + cxl_delay;
+        Tick access_delay = memSidePort.sendAtomic(pkt);
+        Tick total_delay = (delay + cxl_delay) * bridge.clockPeriod() + access_delay;
+        DPRINTF(CxlMemory, "bridge delay=%ld, bridge.clockPeriod=%ld, access_delay=%ld, cxl_delay=%ld, total=%ld\n",
+            delay, bridge.clockPeriod(), access_delay, cxl_delay, total_delay);
+        return total_delay;
     }
     else {
         return delay * bridge.clockPeriod() + memSidePort.sendAtomic(pkt);

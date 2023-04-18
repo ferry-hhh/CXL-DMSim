@@ -17,21 +17,18 @@ namespace gem5
             bool inAddrMap = true;
             const std::string name_ = "CxlMemory::Memory";
             CxlMemory& owner;
+
             public:
-
-        public:
-        Memory(const AddrRange& range, CxlMemory& owner);
-        inline uint8_t* toHostAddr(Addr addr) const { return pmemAddr + addr - range.start(); } // 这里计算的地址其实是要读/写的pmem的地址
-        const std::string& name() const { return name_; }
-        uint64_t size() const { return range.size(); }
-        Addr start() const { return range.start(); }
-        bool isInAddrMap() const { return inAddrMap; }
-        void access(PacketPtr pkt);
-
-        Memory(const Memory& other) = delete;
-        Memory& operator=(const Memory& other) = delete;
-
-        ~Memory() { delete pmemAddr; }
+            Memory(const AddrRange& range, CxlMemory& owner);
+            inline uint8_t* toHostAddr(Addr addr) const { return pmemAddr + addr - range.start(); } // 这里计算的地址其实是要读/写的pmem的地址
+            const std::string& name() const { return name_; }
+            uint64_t size() const { return range.size(); }
+            Addr start() const { return range.start(); }
+            bool isInAddrMap() const { return inAddrMap; }
+            void access(PacketPtr pkt);
+            Memory(const Memory& other) = delete;
+            Memory& operator=(const Memory& other) = delete;
+            ~Memory() { delete pmemAddr; }
         };
 
         Memory mem_;

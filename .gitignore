@@ -34,3 +34,4 @@ configs/dram/lowp_sweep.cfg
 .vscode
 /fs-result
 /full-system-image
+Doxygen.config

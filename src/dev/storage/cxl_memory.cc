@@ -34,10 +34,12 @@ AddrRangeList CxlMemory::getAddrRanges() const {
 }
 
 Tick CxlMemory::resolve_cxl_mem(PacketPtr pkt) {
-    if (pkt->cmd == MemCmd::M2SReq) {
+    // if (pkt->cmd == MemCmd::M2SReq) {
+    if (pkt->cmd == MemCmd::ReadReq) {
         assert(pkt->isRead());
         assert(pkt->needsResponse());
-    } else if (pkt->cmd == MemCmd::M2SRwD) {
+    // } else if (pkt->cmd == MemCmd::M2SRwD) {
+    } else if (pkt->cmd == MemCmd::WriteReq) {
         assert(pkt->isWrite());
         assert(pkt->needsResponse());
     }
@@ -114,7 +116,7 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
         if (pmemAddr) {
             pkt->setData(host_addr);
             DPRINTF(CxlMemory, "%s read due to %s\n", __func__, pkt->print());
-            std::cout << "read data = " << pkt->getPtr<uint8_t>() << "\n";
+            // std::cout << "read data = " << pkt->getPtr<uint8_t>() << "\n";
         }
     } else if (pkt->isInvalidate() || pkt->isClean()) {
         assert(!pkt->isWrite());
@@ -126,7 +128,7 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
         if (pmemAddr) {
             pkt->writeData(host_addr);
             DPRINTF(CxlMemory, "%s write due to %s\n", __func__, pkt->print());
-            std::cout << "write data = " << pkt->getPtr<uint8_t>() << "\n";
+            // std::cout << "write data = " << pkt->getPtr<uint8_t>() << "\n";
         }
         assert(!pkt->req->isInstFetch());
     } else {
