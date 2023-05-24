@@ -12,7 +12,7 @@ class CxlMemory(PciDevice):
     VendorID = 0x8086
     DeviceID = 0X7890
     Command = 0x0
-    # Status = 0x280
+    Status = 0x280
     Revision = 0x0
     ClassCode = 0x01
     SubClassCode = 0x01

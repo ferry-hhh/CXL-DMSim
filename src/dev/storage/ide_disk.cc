@@ -72,6 +72,7 @@ IdeDisk::IdeDisk(const Params &p)
       dmaReadEvent([this]{ dmaReadDone(); }, name()),
       dmaWriteEvent([this]{ dmaWriteDone(); }, name())
 {
+    DPRINTF(IdeDisk, "diskDelay= %ld\n", diskDelay);
     // Reset the device state
     reset(p.driveID);
 
@@ -385,6 +386,8 @@ IdeDisk::doDmaDataRead()
 
     DPRINTF(IdeDisk, "doDmaRead, diskDelay: %d totalDiskDelay: %d\n",
             diskDelay, totalDiskDelay);
+    DPRINTF(IdeDisk, "curPrd.getByteCount(): %ld\n",
+            curPrd.getByteCount());
 
     schedule(dmaReadWaitEvent, curTick() + totalDiskDelay);
 }
@@ -478,6 +481,8 @@ IdeDisk::doDmaDataWrite()
 
     DPRINTF(IdeDisk, "doDmaWrite, diskDelay: %d totalDiskDelay: %d\n",
             diskDelay, totalDiskDelay);
+    DPRINTF(IdeDisk, "curPrd.getByteCount(): %ld\n",
+            curPrd.getByteCount());
 
     memset(dataBuffer, 0, MAX_DMA_SIZE);
     assert(cmdBytesLeft <= MAX_DMA_SIZE);
@@ -556,6 +561,8 @@ IdeDisk::dmaWriteDone()
 void
 IdeDisk::readDisk(uint32_t sector, uint8_t *data)
 {
+    // std::cout << curTick() << ": readDisk data = " << *data << "\n";
+    DPRINTF(IdeDisk, "writeDisk data = %d\n", *data);
     uint32_t bytesRead = image->read(data, sector);
 
     panic_if(bytesRead != SectorSize,
@@ -566,6 +573,8 @@ IdeDisk::readDisk(uint32_t sector, uint8_t *data)
 void
 IdeDisk::writeDisk(uint32_t sector, uint8_t *data)
 {
+    // std::cout << curTick() << ": writeDisk data = " << *data << "\n";
+    DPRINTF(IdeDisk, "writeDisk data = %d\n", *data);
     uint32_t bytesWritten = image->write(data, sector);
 
     panic_if(bytesWritten != SectorSize,
