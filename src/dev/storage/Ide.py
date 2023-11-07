@@ -37,7 +37,7 @@ class IdeDisk(SimObject):
     type = "IdeDisk"
     cxx_header = "dev/storage/ide_disk.hh"
     cxx_class = "gem5::IdeDisk"
-    delay = Param.Latency("1us", "Fixed disk delay in microseconds")
+    delay = Param.Latency("1ms", "Fixed disk delay in microseconds")
     driveID = Param.IdeID("device0", "Drive ID")
     image = Param.DiskImage("Disk image")
 

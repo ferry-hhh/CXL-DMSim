@@ -71,11 +71,11 @@ class MemCtrl(QoSMemCtrl):
 
     # threshold in percent for when to forcefully trigger writes and
     # start emptying the write buffer
-    write_high_thresh_perc = Param.Percent(85, "Threshold to force writes")
+    write_high_thresh_perc = Param.Percent(60, "Threshold to force writes")
 
     # threshold in percentage for when to start writes if the read
     # queue is empty
-    write_low_thresh_perc = Param.Percent(50, "Threshold to start writes")
+    write_low_thresh_perc = Param.Percent(40, "Threshold to start writes")
 
     # minimum write bursts to schedule before switching back to reads
     min_writes_per_switch = Param.Unsigned(

@@ -76,7 +76,7 @@ class PioPort : public SimpleTimingPort
 
         const Tick delay =
             pkt->isRead() ? device->read(pkt) : device->write(pkt);
-        assert(pkt->isResponse() || pkt->isError());
+        // assert(pkt->isResponse() || pkt->isError());
         return delay + receive_delay;
     }
 

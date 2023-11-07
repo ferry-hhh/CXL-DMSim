@@ -134,7 +134,7 @@ class QueuedPrefetcher(BasePrefetcher):
     cxx_class = "gem5::prefetch::Queued"
     cxx_header = "mem/cache/prefetch/queued.hh"
     latency = Param.Int(1, "Latency for generated prefetches")
-    queue_size = Param.Int(32, "Maximum number of queued prefetches")
+    queue_size = Param.Int(64, "Maximum number of queued prefetches")
     max_prefetch_requests_with_pending_translation = Param.Int(
         32,
         "Maximum number of queued prefetches that have a missing translation",
@@ -219,7 +219,7 @@ class IndirectMemoryPrefetcher(QueuedPrefetcher):
     cxx_class = "gem5::prefetch::IndirectMemory"
     cxx_header = "mem/cache/prefetch/indirect_memory.hh"
     pt_table_entries = Param.MemorySize(
-        "16", "Number of entries of the Prefetch Table"
+        "32", "Number of entries of the Prefetch Table"
     )
     pt_table_assoc = Param.Unsigned(16, "Associativity of the Prefetch Table")
     pt_table_indexing_policy = Param.BaseIndexingPolicy(
@@ -319,10 +319,10 @@ class SignaturePathPrefetcher(QueuedPrefetcher):
     )
 
     prefetch_confidence_threshold = Param.Float(
-        0.5, "Minimum confidence to issue prefetches"
+        0.25, "Minimum confidence to issue prefetches"
     )
     lookahead_confidence_threshold = Param.Float(
-        0.75, "Minimum confidence to continue exploring lookahead entries"
+        0.275, "Minimum confidence to continue exploring lookahead entries"
     )
 
 
@@ -687,3 +687,7 @@ class PIFPrefetcher(QueuedPrefetcher):
         self.addEvent(
             HWPProbeEventRetiredInsts(self, simObj, "RetiredInstsPC")
         )
+
+class L2MultiPrefetcher(MultiPrefetcher):
+    prefetchers = VectorParam.BasePrefetcher([SignaturePathPrefetcher(),
+        AMPMPrefetcher(), DCPTPrefetcher()], "Array of prefetchers")

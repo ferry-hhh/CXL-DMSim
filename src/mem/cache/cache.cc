@@ -55,6 +55,7 @@
 #include "debug/Cache.hh"
 #include "debug/CacheTags.hh"
 #include "debug/CacheVerbose.hh"
+#include "debug/CxlMemory.hh"
 #include "enums/Clusivity.hh"
 #include "mem/cache/cache_blk.hh"
 #include "mem/cache/mshr.hh"
@@ -79,7 +80,9 @@ Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                       bool deferred_response, bool pending_downgrade)
 {
     BaseCache::satisfyRequest(pkt, blk);
-
+    if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x200000000) {
+            DPRINTF(CxlMemory, "pkt Size=%ld, blkSize=%ld\n", pkt->getSize(), blkSize);
+    }
     if (pkt->isRead()) {
         // determine if this read is from a (coherent) cache or not
         if (pkt->fromCache()) {
@@ -180,6 +183,8 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         blk = nullptr;
         // lookupLatency is the latency in case the request is uncacheable.
         lat = lookupLatency;
+        if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x200000000) {
+            DPRINTF(CxlMemory, "cache access. lookupLatency=%lld\n", lat);}
         return false;
     }
 
@@ -316,7 +321,8 @@ Cache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
     // flush and invalidate any existing block as part of the
     // lookup
     assert(!pkt->req->isUncacheable());
-
+    if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x200000000) {
+        DPRINTF(CxlMemory, "handleTimingReqHit request_time is %lld\n", request_time);}
     BaseCache::handleTimingReqHit(pkt, blk, request_time);
 }
 
@@ -327,6 +333,8 @@ Cache::handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk, Tick forward_time,
 
     // These should always hit due to the earlier Locked Read
     assert(pkt->cmd != MemCmd::LockedRMWWriteReq);
+    if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x200000000) {
+        DPRINTF(CxlMemory, "handleTimingReqMiss request_time=%lld,forward_time =%ld\n", request_time, forward_time);}
     if (pkt->req->isUncacheable()) {
         // ignore any existing MSHR if we are dealing with an
         // uncacheable request
@@ -406,6 +414,9 @@ void
 Cache::recvTimingReq(PacketPtr pkt)
 {
     DPRINTF(CacheTags, "%s tags:\n%s\n", __func__, tags->print());
+    if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x200000000) {
+        DPRINTF(CxlMemory, "!!!%s for %s!!!\n", __func__, pkt->print());
+    }
 
     promoteWholeLineWrites(pkt);
 

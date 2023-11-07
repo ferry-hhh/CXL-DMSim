@@ -79,10 +79,10 @@ class BaseO3CPU(BaseCPU):
     activity = Param.Unsigned(0, "Initial count")
 
     cacheStorePorts = Param.Unsigned(
-        200, "Cache Ports. " "Constrains stores only."
+        4, "Cache Ports. " "Constrains stores only."
     )
     cacheLoadPorts = Param.Unsigned(
-        200, "Cache Ports. " "Constrains loads only."
+        4, "Cache Ports. " "Constrains loads only."
     )
 
     decodeToFetchDelay = Param.Cycles(1, "Decode to fetch delay")
@@ -94,7 +94,7 @@ class BaseO3CPU(BaseCPU):
     fetchWidth = Param.Unsigned(8, "Fetch width")
     fetchBufferSize = Param.Unsigned(64, "Fetch buffer size in bytes")
     fetchQueueSize = Param.Unsigned(
-        32, "Fetch queue size in micro-ops " "per-thread"
+        128, "Fetch queue size in micro-ops " "per-thread"
     )
 
     renameToDecodeDelay = Param.Cycles(1, "Rename to decode delay")
@@ -142,8 +142,8 @@ class BaseO3CPU(BaseCPU):
         5, "Time buffer size for forward communication"
     )
 
-    LQEntries = Param.Unsigned(32, "Number of load queue entries")
-    SQEntries = Param.Unsigned(32, "Number of store queue entries")
+    LQEntries = Param.Unsigned(128, "Number of load queue entries")
+    SQEntries = Param.Unsigned(128, "Number of store queue entries")
     LSQDepCheckShift = Param.Unsigned(
         4, "Number of places to shift addr before check"
     )
@@ -157,8 +157,8 @@ class BaseO3CPU(BaseCPU):
         "Number of load/store insts before the dep predictor "
         "should be invalidated",
     )
-    LFSTSize = Param.Unsigned(1024, "Last fetched store table size")
-    SSITSize = Param.Unsigned(1024, "Store set ID table size")
+    LFSTSize = Param.Unsigned(2048, "Last fetched store table size")
+    SSITSize = Param.Unsigned(2048, "Store set ID table size")
 
     numRobs = Param.Unsigned(1, "Number of Reorder Buffers")
 
@@ -176,8 +176,8 @@ class BaseO3CPU(BaseCPU):
     )
     # most ISAs don't use condition-code regs, so default is 0
     numPhysCCRegs = Param.Unsigned(0, "Number of physical cc registers")
-    numIQEntries = Param.Unsigned(64, "Number of instruction queue entries")
-    numROBEntries = Param.Unsigned(192, "Number of reorder buffer entries")
+    numIQEntries = Param.Unsigned(128, "Number of instruction queue entries")
+    numROBEntries = Param.Unsigned(320, "Number of reorder buffer entries")
 
     smtNumFetchingThreads = Param.Unsigned(1, "SMT Number of Fetching Threads")
     smtFetchPolicy = Param.SMTFetchPolicy("RoundRobin", "SMT Fetch policy")

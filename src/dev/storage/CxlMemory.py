@@ -7,7 +7,7 @@ class CxlMemory(PciDevice):
     cxx_header = "dev/storage/cxl_memory.hh"
     cxx_class = 'gem5::CxlMemory'
     latency = Param.Latency('50ns', "cxl-memory device's latency for mem access")
-    cxl_mem_latency = Param.Latency('2ns', "cxl.mem protocol processing's latency for device")
+    cxl_mem_latency = Param.Latency('25ns', "cxl.mem protocol processing's latency for device")
 
     VendorID = 0x8086
     DeviceID = 0X7890

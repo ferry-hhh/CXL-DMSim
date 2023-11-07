@@ -50,11 +50,12 @@ from gem5.runtime import get_runtime_isa
 
 
 class L1Cache(Cache):
-    assoc = 2
-    tag_latency = 2
-    data_latency = 2
-    response_latency = 2
-    mshrs = 4
+    assoc = 8
+    tag_latency = 4
+    data_latency = 4
+    response_latency = 4
+    mshrs = 20
+    write_buffers = 20
     tgts_per_mshr = 20
 
 
@@ -69,13 +70,13 @@ class L1_DCache(L1Cache):
 
 
 class L2Cache(Cache):
-    assoc = 8
-    tag_latency = 20
-    data_latency = 20
-    response_latency = 20
-    mshrs = 20
+    assoc = 16
+    tag_latency = 12
+    data_latency = 12
+    response_latency = 12
+    mshrs = 32
     tgts_per_mshr = 12
-    write_buffers = 8
+    write_buffers = 32
 
 
 class IOCache(Cache):
@@ -89,7 +90,7 @@ class IOCache(Cache):
 
 
 class PageTableWalkerCache(Cache):
-    assoc = 2
+    assoc = 4
     tag_latency = 2
     data_latency = 2
     response_latency = 2
