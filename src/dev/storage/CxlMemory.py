@@ -14,9 +14,9 @@ class CxlMemory(PciDevice):
     Command = 0x0
     Status = 0x280
     Revision = 0x0
-    ClassCode = 0x01
-    SubClassCode = 0x01
-    ProgIF = 0x85
+    ClassCode = 0x05
+    SubClassCode = 0x00
+    ProgIF = 0x00
     InterruptLine = 0x1f
     InterruptPin = 0x01
 

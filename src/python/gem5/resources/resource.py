@@ -112,6 +112,22 @@ class CustomDiskImageResource(CustomResource):
 
         super().__init__(local_path=local_path, metadata=metadata)
 
+class CustomKernelResource(CustomResource):
+    """
+    A custom kernel gem5 resource. It can be used to specify a custom,
+    local kernel.
+    """
+
+    def __init__(
+        self,
+        local_path: str,
+        metadata: Dict = {},
+    ):
+        """
+        :param local_path: The path of the kernel on the host system.
+        :param metadata: Metadata for the resource.
+        """
+        super().__init__(local_path=local_path, metadata=metadata)
 
 class Resource(AbstractResource):
     """

@@ -30,7 +30,10 @@ Tick CxlMemory::write(PacketPtr pkt) {
 }
 
 AddrRangeList CxlMemory::getAddrRanges() const {
-    return PciDevice::getAddrRanges();
+    AddrRangeList ranges = PciDevice::getAddrRanges();
+    AddrRange cxl_range = AddrRange(0x100000000, 0x100000000+0x80000000);
+    ranges.push_back(cxl_range);
+    return ranges;
 }
 
 Tick CxlMemory::resolve_cxl_mem(PacketPtr pkt) {
@@ -56,7 +59,7 @@ CxlMemory::Memory::Memory(const AddrRange& range, CxlMemory& owner)
 void CxlMemory::Memory::access(PacketPtr pkt) {
     PciBar *bar = owner.BARs[0];
     range = RangeSize(bar->addr(), bar->size());
-    DPRINTF(CxlMemory, "final range start=0x%lx, range size=0x%lx\n", range.start(), range.size());
+    // DPRINTF(CxlMemory, "final range start=0x%lx, range size=0x%lx\n", range.start(), range.size());
     // range = AddrRange(0x100000000, 0x100000000 + 0x100000000); // 0x8000000=128MiB 0x100000000=4GiB
     if (pkt->cacheResponding()) {
         DPRINTF(CxlMemory, "Cache responding to %#llx: not responding\n", pkt->getAddr());
@@ -68,11 +71,11 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
         return;
     }
     
-    assert(pkt->getAddrRange().isSubset(range));
+    // assert(pkt->getAddrRange().isSubset(range));
 
     uint8_t* host_addr = toHostAddr(pkt->getAddr());
-    DPRINTF(CxlMemory, "host_addr = %p, pkt->getAddr = 0x%lx, pmemAddr = %p, range.start = 0x%lx\n", 
-        *host_addr, pkt->getAddr(), *pmemAddr, range.start());
+    // DPRINTF(CxlMemory, "host_addr = %p, pkt->getAddr = 0x%lx, pmemAddr = %p, range.start = 0x%lx\n", 
+    //     *host_addr, pkt->getAddr(), *pmemAddr, range.start());
     if (pkt->cmd == MemCmd::SwapReq) {
 
         if (pkt->isAtomicOp()) {

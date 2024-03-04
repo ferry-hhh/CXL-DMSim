@@ -20,7 +20,11 @@ namespace gem5
 
             public:
             Memory(const AddrRange& range, CxlMemory& owner);
-            inline uint8_t* toHostAddr(Addr addr) const { return pmemAddr + addr - range.start(); } // 这里计算的地址其实是要读/写的pmem的地址
+            inline uint8_t* toHostAddr(Addr addr) const { 
+                AddrRange temp_range = AddrRange(0x100000000, 0x100000000+0x80000000);
+                if (temp_range.contains(addr)) 
+                    return pmemAddr + addr - 0x100000000;
+                return pmemAddr + addr - range.start(); } // 这里计算的地址其实是要读/写的pmem的地址
             const std::string& name() const { return name_; }
             uint64_t size() const { return range.size(); }
             Addr start() const { return range.start(); }
