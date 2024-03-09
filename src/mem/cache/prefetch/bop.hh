@@ -46,7 +46,6 @@ namespace gem5
 
 struct BOPPrefetcherParams;
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -149,7 +148,7 @@ class BOP : public Queued
         void bestOffsetLearning(Addr);
 
         /** Update the RR right table after a prefetch fill */
-        void notifyFill(const PacketPtr& pkt) override;
+        void notifyFill(const CacheAccessProbeArg &arg) override;
 
     public:
 
@@ -157,7 +156,8 @@ class BOP : public Queued
         ~BOP() = default;
 
         void calculatePrefetch(const PrefetchInfo &pfi,
-                               std::vector<AddrPriority> &addresses) override;
+                               std::vector<AddrPriority> &addresses,
+                               const CacheAccessor &cache) override;
 };
 
 } // namespace prefetch

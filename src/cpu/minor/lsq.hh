@@ -58,7 +58,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Minor, minor);
 namespace minor
 {
 
@@ -549,7 +548,7 @@ class LSQ : public Named
     const unsigned int inMemorySystemLimit;
 
     /** Memory system access width (and snap) in bytes */
-    const unsigned int lineWidth;
+    const Addr lineWidth;
 
   public:
     /** The LSQ consists of three queues: requests, transfers and the

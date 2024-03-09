@@ -39,7 +39,6 @@ namespace gem5
 struct DeltaCorrelatingPredictionTablesParams;
 struct DCPTPrefetcherParams;
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -115,9 +114,11 @@ class DeltaCorrelatingPredictionTables : public SimObject
      * Computes the prefetch candidates given a prefetch event.
      * @param pfi The prefetch event information
      * @param addresses prefetch candidates generated
+     * @param cache accessor for cache lookups
      */
     void calculatePrefetch(const Base::PrefetchInfo &pfi,
-        std::vector<Queued::AddrPriority> &addresses);
+        std::vector<Queued::AddrPriority> &addresses,
+        const CacheAccessor &cache);
 
 };
 
@@ -131,7 +132,8 @@ class DCPT : public Queued
     ~DCPT() = default;
 
     void calculatePrefetch(const PrefetchInfo &pfi,
-        std::vector<AddrPriority> &addresses) override;
+        std::vector<AddrPriority> &addresses,
+        const CacheAccessor &cache) override;
 };
 
 } // namespace prefetch

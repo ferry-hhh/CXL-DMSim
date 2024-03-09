@@ -36,11 +36,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
 from m5.proxy import *
 from m5.util.fdthelper import *
-
-from m5.objects.ClockedObject import ClockedObject
 
 
 class PioDevice(ClockedObject):
@@ -55,7 +54,7 @@ class PioDevice(ClockedObject):
     def generateBasicPioDeviceNode(
         self, state, name, pio_addr, size, interrupts=None
     ):
-        node = FdtNode("%s@%x" % (name, int(pio_addr)))
+        node = FdtNode(f"{name}@{int(pio_addr):x}")
         node.append(
             FdtPropertyWords(
                 "reg", state.addrCells(pio_addr) + state.sizeCells(size)

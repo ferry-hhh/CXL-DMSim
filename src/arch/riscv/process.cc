@@ -101,8 +101,16 @@ RiscvProcess64::initState()
     Process::initState();
 
     argsInit<uint64_t>(PageBytes);
-    for (ContextID ctx: contextIds)
-        system->threads[ctx]->setMiscRegNoEffect(MISCREG_PRV, PRV_U);
+    for (ContextID ctx: contextIds) {
+        auto *tc = system->threads[ctx];
+        tc->setMiscRegNoEffect(MISCREG_PRV, PRV_U);
+        auto *isa = dynamic_cast<ISA*>(tc->getIsaPtr());
+        fatal_if(isa->rvType() != RV64, "RISC V CPU should run in 64 bits mode");
+        MISA misa = tc->readMiscRegNoEffect(MISCREG_ISA);
+        fatal_if(!(misa.rvu && misa.rvs),
+            "RISC V SE mode can't run without supervisor and user "
+            "privilege modes.");
+    }
 }
 
 void
@@ -114,9 +122,12 @@ RiscvProcess32::initState()
     for (ContextID ctx: contextIds) {
         auto *tc = system->threads[ctx];
         tc->setMiscRegNoEffect(MISCREG_PRV, PRV_U);
-        PCState pc = tc->pcState().as<PCState>();
-        pc.rv32(true);
-        tc->pcState(pc);
+        auto *isa = dynamic_cast<ISA*>(tc->getIsaPtr());
+        fatal_if(isa->rvType() != RV32, "RISC V CPU should run in 32 bits mode");
+        MISA misa = tc->readMiscRegNoEffect(MISCREG_ISA);
+        fatal_if(!(misa.rvu && misa.rvs),
+            "RISC V SE mode can't run without supervisor and user "
+            "privilege modes.");
     }
 }
 

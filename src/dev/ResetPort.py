@@ -23,11 +23,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.params import Port, VectorPort
+from m5.params import (
+    Port,
+    VectorPort,
+)
 
 RESET_REQUEST_ROLE = "Reset Request"
 RESET_RESPONSE_ROLE = "Reset Response"
 Port.compat(RESET_REQUEST_ROLE, RESET_RESPONSE_ROLE)
+
 
 # ResetRequestPort is an artifact request port for reset purpose.
 class ResetRequestPort(Port):
@@ -42,8 +46,15 @@ class ResetResponsePort(Port):
         super().__init__(RESET_RESPONSE_ROLE, desc)
 
 
-# VectorResetRequestPort presents a bank of artifact reset request
+# VectorResetRequestPort represents a bank of artifact reset request
 # ports.
 class VectorResetRequestPort(VectorPort):
     def __init__(self, desc):
         super().__init__(RESET_REQUEST_ROLE, desc, is_source=True)
+
+
+# VectorResetResponsePort represents a bank of artifact reset request
+# ports.
+class VectorResetResponsePort(VectorPort):
+    def __init__(self, desc):
+        super().__init__(RESET_RESPONSE_ROLE, desc)

@@ -27,28 +27,32 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import argparse, os, re, getpass
-import math
+import argparse
+import getpass
 import glob
 import inspect
+import math
+import os
+import re
 
 import m5
 from m5.objects import *
 from m5.util import addToPath
+
 from gem5.isas import ISA
-from gem5.runtime import get_runtime_isa
+from gem5.runtime import get_supported_isas
 
 addToPath("../")
 
-from ruby import Ruby
-
-from common import Options
-from common import Simulation
-from common import GPUTLBOptions, GPUTLBConfig
-
 import hsaTopology
-from common import FileSystemConfig
-
+from common import (
+    FileSystemConfig,
+    GPUTLBConfig,
+    GPUTLBOptions,
+    Options,
+    Simulation,
+)
+from ruby import Ruby
 
 # Adding script options
 parser = argparse.ArgumentParser()
@@ -85,7 +89,7 @@ parser.add_argument(
     "--cu-per-sqc",
     type=int,
     default=4,
-    help="number of CUs" "sharing an SQC (icache, and thus icache TLB)",
+    help="number of CUssharing an SQC (icache, and thus icache TLB)",
 )
 parser.add_argument(
     "--cu-per-scalar-cache",
@@ -94,7 +98,7 @@ parser.add_argument(
     help="Number of CUs sharing a scalar cache",
 )
 parser.add_argument(
-    "--simds-per-cu", type=int, default=4, help="SIMD units" "per CU"
+    "--simds-per-cu", type=int, default=4, help="SIMD unitsper CU"
 )
 parser.add_argument(
     "--cu-per-sa",
@@ -140,13 +144,13 @@ parser.add_argument(
     "--glbmem-wr-bus-width",
     type=int,
     default=32,
-    help="VGPR to Coalescer (Global Memory) data bus width " "in bytes",
+    help="VGPR to Coalescer (Global Memory) data bus width in bytes",
 )
 parser.add_argument(
     "--glbmem-rd-bus-width",
     type=int,
     default=32,
-    help="Coalescer to VGPR (Global Memory) data bus width in " "bytes",
+    help="Coalescer to VGPR (Global Memory) data bus width in bytes",
 )
 # Currently we only support 1 local memory pipe
 parser.add_argument(
@@ -166,7 +170,7 @@ parser.add_argument(
     "--wfs-per-simd",
     type=int,
     default=10,
-    help="Number of " "WF slots per SIMD",
+    help="Number of WF slots per SIMD",
 )
 
 parser.add_argument(
@@ -276,12 +280,25 @@ parser.add_argument(
     help="Latency for responses from ruby to the cu.",
 )
 parser.add_argument(
-    "--TLB-prefetch", type=int, help="prefetch depth for" "TLBs"
+    "--scalar-mem-req-latency",
+    type=int,
+    default=50,
+    help="Latency for scalar requests from the cu to ruby.",
 )
+parser.add_argument(
+    "--scalar-mem-resp-latency",
+    type=int,
+    # Set to 0 as the scalar cache response path does not model
+    # response latency yet and this parameter is currently not used
+    default=0,
+    help="Latency for scalar responses from ruby to the cu.",
+)
+
+parser.add_argument("--TLB-prefetch", type=int, help="prefetch depth for TLBs")
 parser.add_argument(
     "--pf-type",
     type=str,
-    help="type of prefetch: " "PF_CU, PF_WF, PF_PHASE, PF_STRIDE",
+    help="type of prefetch: PF_CU, PF_WF, PF_PHASE, PF_STRIDE",
 )
 parser.add_argument("--pf-stride", type=int, help="set prefetch stride")
 parser.add_argument(
@@ -354,7 +371,7 @@ parser.add_argument(
     type=str,
     default="gfx801",
     choices=GfxVersion.vals,
-    help="Gfx version for gpu" "Note: gfx902 is not fully supported by ROCm",
+    help="Gfx version for gpuNote: gfx902 is not fully supported by ROCm",
 )
 
 Ruby.define_options(parser)
@@ -381,8 +398,8 @@ if buildEnv["PROTOCOL"] == "None":
     fatal("GPU model requires ruby")
 
 # Currently the gpu model requires only timing or detailed CPU
-if not (args.cpu_type == "TimingSimpleCPU" or args.cpu_type == "DerivO3CPU"):
-    fatal("GPU model requires TimingSimpleCPU or DerivO3CPU")
+if not (args.cpu_type == "X86TimingSimpleCPU" or args.cpu_type == "X86O3CPU"):
+    fatal("GPU model requires X86TimingSimpleCPU or X86O3CPU.")
 
 # This file can support multiple compute units
 assert args.num_compute_units >= 1
@@ -463,6 +480,8 @@ for i in range(n_cu):
             vrf_lm_bus_latency=args.vrf_lm_bus_latency,
             mem_req_latency=args.mem_req_latency,
             mem_resp_latency=args.mem_resp_latency,
+            scalar_mem_req_latency=args.scalar_mem_req_latency,
+            scalar_mem_resp_latency=args.scalar_mem_resp_latency,
             localDataStore=LdsState(
                 banks=args.numLdsBanks,
                 bankConflictPenalty=args.ldsBankConflictPenalty,
@@ -552,7 +571,7 @@ cp_list = []
 cpu_list = []
 
 CpuClass, mem_mode = Simulation.getCPUClass(args.cpu_type)
-if CpuClass == AtomicSimpleCPU:
+if CpuClass == X86AtomicSimpleCPU or CpuClass == AtomicSimpleCPU:
     fatal("AtomicSimpleCPU is not supported")
 if mem_mode != "timing":
     fatal("Only the timing memory mode is supported")
@@ -658,6 +677,7 @@ gpu_driver.device = gpu_cmd_proc
 shader.dispatcher = dispatcher
 shader.gpu_cmd_proc = gpu_cmd_proc
 
+
 # Create and assign the workload Check for rel_path in elements of
 # base_list using test, returning the first full path that satisfies test
 def find_path(base_list, rel_path, test):
@@ -668,7 +688,7 @@ def find_path(base_list, rel_path, test):
         full_path = os.path.join(base, rel_path)
         if test(full_path):
             return full_path
-    fatal("%s not found in %s" % (rel_path, base_list))
+    fatal(f"{rel_path} not found in {base_list}")
 
 
 def find_file(base_list, rel_path):
@@ -683,7 +703,7 @@ if os.path.isdir(executable):
     executable = find_file(benchmark_path, args.cmd)
 
 if args.env:
-    with open(args.env, "r") as f:
+    with open(args.env) as f:
         env = [line.rstrip() for line in f]
 else:
     env = [
@@ -702,7 +722,7 @@ else:
                 "/usr/lib/x86_64-linux-gnu",
             ]
         ),
-        "HOME=%s" % os.getenv("HOME", "/"),
+        f"HOME={os.getenv('HOME', '/')}",
         # Disable the VM fault handler signal creation for dGPUs also
         # forces the use of DefaultSignals instead of driver-controlled
         # InteruptSignals throughout the runtime.  DefaultSignals poll
@@ -741,7 +761,7 @@ if fast_forward:
     ]
 
 # Other CPU strings cause bad addresses in ROCm. Revert back to M5 Simulator.
-for (i, cpu) in enumerate(cpu_list):
+for i, cpu in enumerate(cpu_list):
     for j in range(len(cpu)):
         cpu.isa[j].vendor_string = "M5 Simulator"
 
@@ -766,7 +786,7 @@ system.clk_domain = SrcClockDomain(
 
 if fast_forward:
     have_kvm_support = "BaseKvmCPU" in globals()
-    if have_kvm_support and get_runtime_isa() == ISA.X86:
+    if have_kvm_support and get_supported_isas().contains(ISA.X86):
         system.vm = KvmVM()
         system.m5ops_base = 0xFFFF0000
         for i in range(len(host_cpu.workload)):
@@ -805,18 +825,15 @@ for i in range(args.num_cpus):
     system.cpu[i].dcache_port = ruby_port.in_ports
 
     ruby_port.mem_request_port = system.piobus.cpu_side_ports
-    if get_runtime_isa() == ISA.X86:
-        system.cpu[i].interrupts[0].pio = system.piobus.mem_side_ports
-        system.cpu[i].interrupts[
-            0
-        ].int_requestor = system.piobus.cpu_side_ports
-        system.cpu[i].interrupts[
-            0
-        ].int_responder = system.piobus.mem_side_ports
-        if fast_forward:
-            system.cpu[i].mmu.connectWalkerPorts(
-                ruby_port.in_ports, ruby_port.in_ports
-            )
+
+    # X86 ISA is implied from cpu type check above
+    system.cpu[i].interrupts[0].pio = system.piobus.mem_side_ports
+    system.cpu[i].interrupts[0].int_requestor = system.piobus.cpu_side_ports
+    system.cpu[i].interrupts[0].int_responder = system.piobus.mem_side_ports
+    if fast_forward:
+        system.cpu[i].mmu.connectWalkerPorts(
+            ruby_port.in_ports, ruby_port.in_ports
+        )
 
 # attach CU ports to Ruby
 # Because of the peculiarities of the CP core, you may have 1 CPU but 2
@@ -907,14 +924,10 @@ else:
 
 redirect_paths = [
     RedirectPath(
-        app_path="/proc", host_paths=["%s/fs/proc" % m5.options.outdir]
+        app_path="/proc", host_paths=[f"{m5.options.outdir}/fs/proc"]
     ),
-    RedirectPath(
-        app_path="/sys", host_paths=["%s/fs/sys" % m5.options.outdir]
-    ),
-    RedirectPath(
-        app_path="/tmp", host_paths=["%s/fs/tmp" % m5.options.outdir]
-    ),
+    RedirectPath(app_path="/sys", host_paths=[f"{m5.options.outdir}/fs/sys"]),
+    RedirectPath(app_path="/tmp", host_paths=[f"{m5.options.outdir}/fs/tmp"]),
 ]
 
 system.redirect_paths = redirect_paths
@@ -966,7 +979,7 @@ exit_event = m5.simulate(maxtick)
 if args.fast_forward:
     if exit_event.getCause() == "a thread reached the max instruction count":
         m5.switchCpus(system, switch_cpu_list)
-        print("Switched CPUS @ tick %s" % (m5.curTick()))
+        print(f"Switched CPUS @ tick {m5.curTick()}")
         m5.stats.reset()
         exit_event = m5.simulate(maxtick - m5.curTick())
 elif args.fast_forward_pseudo_op:
@@ -977,7 +990,7 @@ elif args.fast_forward_pseudo_op:
             print("Dumping stats...")
             m5.stats.dump()
         m5.switchCpus(system, switch_cpu_list)
-        print("Switched CPUS @ tick %s" % (m5.curTick()))
+        print(f"Switched CPUS @ tick {m5.curTick()}")
         m5.stats.reset()
         # This lets us switch back and forth without keeping a counter
         switch_cpu_list = [(x[1], x[0]) for x in switch_cpu_list]

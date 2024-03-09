@@ -36,7 +36,6 @@ from m5.objects import *
 
 
 def TLB_constructor(options, level, gpu_ctrl=None, full_system=False):
-
     if full_system:
         constructor_call = (
             "VegaGPUTLB(\
@@ -71,7 +70,6 @@ def TLB_constructor(options, level, gpu_ctrl=None, full_system=False):
 
 
 def Coalescer_constructor(options, level, full_system):
-
     if full_system:
         constructor_call = (
             "VegaTLBCoalescer(probesPerCycle = \
@@ -204,8 +202,8 @@ def config_tlb_hierarchy(
             # add the different TLB levels to the system
             # Modify here if you want to make the TLB hierarchy a child of
             # the shader.
-            exec("system.%s = TLB_array" % system_TLB_name)
-            exec("system.%s = Coalescer_array" % system_Coalescer_name)
+            exec(f"system.{system_TLB_name} = TLB_array")
+            exec(f"system.{system_Coalescer_name} = Coalescer_array")
 
     # ===========================================================
     # Specify the TLB hierarchy (i.e., port connections)

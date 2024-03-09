@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2017, 2019, 2021 Arm Limited
+# Copyright (c) 2016-2017, 2019, 2021-2023 Arm Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -39,8 +39,8 @@ import m5
 from m5.objects import *
 
 m5.util.addToPath("../../")
-from common.Caches import *
 from common import ObjectList
+from common.Caches import *
 
 have_kvm = "ArmV8KvmCPU" in ObjectList.cpu_list.get_names()
 have_fastmodel = "FastModelCortexA76" in ObjectList.cpu_list.get_names()
@@ -95,7 +95,7 @@ class MemBus(SystemXBar):
     default = Self.badaddr_responder.pio
 
 
-class CpuCluster(SubSystem):
+class ArmCpuCluster(CpuCluster):
     def __init__(
         self,
         system,
@@ -106,8 +106,10 @@ class CpuCluster(SubSystem):
         l1i_type,
         l1d_type,
         l2_type,
+        tarmac_gen=False,
+        tarmac_dest=None,
     ):
-        super(CpuCluster, self).__init__()
+        super().__init__()
         self._cpu_type = cpu_type
         self._l1i_type = l1i_type
         self._l1d_type = l1d_type
@@ -120,24 +122,15 @@ class CpuCluster(SubSystem):
             clock=cpu_clock, voltage_domain=self.voltage_domain
         )
 
-        self.cpus = [
-            self._cpu_type(
-                cpu_id=system.numCpus() + idx, clk_domain=self.clk_domain
-            )
-            for idx in range(num_cpus)
-        ]
+        self.generate_cpus(cpu_type, num_cpus)
 
         for cpu in self.cpus:
-            cpu.createThreads()
-            cpu.createInterruptController()
-            cpu.socket_id = system.numCpuClusters()
-        system.addCpuCluster(self, num_cpus)
+            if tarmac_gen:
+                cpu.tracer = TarmacTracer()
+                if tarmac_dest is not None:
+                    cpu.tracer.outfile = tarmac_dest
 
-    def requireCaches(self):
-        return self._cpu_type.require_caches()
-
-    def memoryMode(self):
-        return self._cpu_type.memory_mode()
+        system.addCpuCluster(self)
 
     def addL1(self):
         for cpu in self.cpus:
@@ -154,7 +147,13 @@ class CpuCluster(SubSystem):
             cpu.connectCachedPorts(self.toL2Bus.cpu_side_ports)
         self.toL2Bus.mem_side_ports = self.l2.cpu_side
 
-    def addPMUs(self, ints, events=[]):
+    def addPMUs(
+        self,
+        ints,
+        events=[],
+        exit_sim_on_control=False,
+        exit_sim_on_interrupt=False,
+    ):
         """
         Instantiates 1 ArmPMU per PE. The method is accepting a list of
         interrupt numbers (ints) used by the PMU and a list of events to
@@ -166,12 +165,21 @@ class CpuCluster(SubSystem):
         :type ints: List[int]
         :param events: Additional events to be measured by the PMUs
         :type events: List[Union[ProbeEvent, SoftwareIncrement]]
+        :param exit_sim_on_control: If true, exit the sim loop when the PMU is
+            enabled, disabled, or reset.
+        :type exit_on_control: bool
+        :param exit_sim_on_interrupt: If true, exit the sim loop when the PMU
+            triggers an interrupt.
+        :type exit_on_control: bool
+
         """
         assert len(ints) == len(self.cpus)
         for cpu, pint in zip(self.cpus, ints):
             int_cls = ArmPPI if pint < 32 else ArmSPI
             for isa in cpu.isa:
                 isa.pmu = ArmPMU(interrupt=int_cls(num=pint))
+                isa.pmu.exitOnPMUControl = exit_sim_on_control
+                isa.pmu.exitOnPMUInterrupt = exit_sim_on_interrupt
                 isa.pmu.addArchEvents(
                     cpu=cpu,
                     itb=cpu.mmu.itb,
@@ -191,36 +199,63 @@ class CpuCluster(SubSystem):
                 cpu.connectCachedPorts(bus.cpu_side_ports)
 
 
-class AtomicCluster(CpuCluster):
-    def __init__(self, system, num_cpus, cpu_clock, cpu_voltage="1.0V"):
-        cpu_config = [
-            ObjectList.cpu_list.get("AtomicSimpleCPU"),
-            None,
-            None,
-            None,
-        ]
-        super(AtomicCluster, self).__init__(
-            system, num_cpus, cpu_clock, cpu_voltage, *cpu_config
+class AtomicCluster(ArmCpuCluster):
+    def __init__(
+        self,
+        system,
+        num_cpus,
+        cpu_clock,
+        cpu_voltage="1.0V",
+        tarmac_gen=False,
+        tarmac_dest=None,
+    ):
+        super().__init__(
+            system,
+            num_cpus,
+            cpu_clock,
+            cpu_voltage,
+            cpu_type=ObjectList.cpu_list.get("AtomicSimpleCPU"),
+            l1i_type=None,
+            l1d_type=None,
+            l2_type=None,
+            tarmac_gen=tarmac_gen,
+            tarmac_dest=tarmac_dest,
         )
 
     def addL1(self):
         pass
 
 
-class KvmCluster(CpuCluster):
-    def __init__(self, system, num_cpus, cpu_clock, cpu_voltage="1.0V"):
-        cpu_config = [ObjectList.cpu_list.get("ArmV8KvmCPU"), None, None, None]
-        super(KvmCluster, self).__init__(
-            system, num_cpus, cpu_clock, cpu_voltage, *cpu_config
+class KvmCluster(ArmCpuCluster):
+    def __init__(
+        self,
+        system,
+        num_cpus,
+        cpu_clock,
+        cpu_voltage="1.0V",
+        tarmac_gen=False,
+        tarmac_dest=None,
+    ):
+        super().__init__(
+            system,
+            num_cpus,
+            cpu_clock,
+            cpu_voltage,
+            cpu_type=ObjectList.cpu_list.get("ArmV8KvmCPU"),
+            l1i_type=None,
+            l1d_type=None,
+            l2_type=None,
+            tarmac_gen=tarmac_gen,
+            tarmac_dest=tarmac_dest,
         )
 
     def addL1(self):
         pass
 
 
-class FastmodelCluster(SubSystem):
+class FastmodelCluster(CpuCluster):
     def __init__(self, system, num_cpus, cpu_clock, cpu_voltage="1.0V"):
-        super(FastmodelCluster, self).__init__()
+        super().__init__()
 
         # Setup GIC
         gic = system.realview.gic
@@ -285,12 +320,12 @@ class FastmodelCluster(SubSystem):
         self.cpu_hub.a2t = a2t
         self.cpu_hub.t2g = t2g
 
-        system.addCpuCluster(self, num_cpus)
+        system.addCpuCluster(self)
 
-    def requireCaches(self):
+    def require_caches(self):
         return False
 
-    def memoryMode(self):
+    def memory_mode(self):
         return "atomic_noncaching"
 
     def addL1(self):
@@ -303,68 +338,20 @@ class FastmodelCluster(SubSystem):
         pass
 
 
-class BaseSimpleSystem(ArmSystem):
-    cache_line_size = 64
+class ClusterSystem:
+    """
+    Base class providing cpu clusters generation/handling methods to
+    SE/FS systems
+    """
 
-    def __init__(self, mem_size, platform, **kwargs):
-        super(BaseSimpleSystem, self).__init__(**kwargs)
-
-        self.voltage_domain = VoltageDomain(voltage="1.0V")
-        self.clk_domain = SrcClockDomain(
-            clock="1GHz", voltage_domain=Parent.voltage_domain
-        )
-
-        if platform is None:
-            self.realview = VExpress_GEM5_V1()
-        else:
-            self.realview = platform
-
-        if hasattr(self.realview.gic, "cpu_addr"):
-            self.gic_cpu_addr = self.realview.gic.cpu_addr
-
-        self.terminal = Terminal()
-        self.vncserver = VncServer()
-
-        self.iobus = IOXBar()
-        # Device DMA -> MEM
-        self.mem_ranges = self.getMemRanges(int(Addr(mem_size)))
-
+    def __init__(self, **kwargs):
         self._clusters = []
-        self._num_cpus = 0
-
-    def getMemRanges(self, mem_size):
-        """
-        Define system memory ranges. This depends on the physical
-        memory map provided by the realview platform and by the memory
-        size provided by the user (mem_size argument).
-        The method is iterating over all platform ranges until they cover
-        the entire user's memory requirements.
-        """
-        mem_ranges = []
-        for mem_range in self.realview._mem_regions:
-            size_in_range = min(mem_size, mem_range.size())
-
-            mem_ranges.append(
-                AddrRange(start=mem_range.start, size=size_in_range)
-            )
-
-            mem_size -= size_in_range
-            if mem_size == 0:
-                return mem_ranges
-
-        raise ValueError("memory size too big for platform capabilities")
 
     def numCpuClusters(self):
         return len(self._clusters)
 
-    def addCpuCluster(self, cpu_cluster, num_cpus):
-        assert cpu_cluster not in self._clusters
-        assert num_cpus > 0
+    def addCpuCluster(self, cpu_cluster):
         self._clusters.append(cpu_cluster)
-        self._num_cpus += num_cpus
-
-    def numCpus(self):
-        return self._num_cpus
 
     def addCaches(self, need_caches, last_cache_level):
         if not need_caches:
@@ -395,13 +382,87 @@ class BaseSimpleSystem(ArmSystem):
             cluster.connectMemSide(cluster_mem_bus)
 
 
+class SimpleSeSystem(System, ClusterSystem):
+    """
+    Example system class for syscall emulation mode
+    """
+
+    # Use a fixed cache line size of 64 bytes
+    cache_line_size = 64
+
+    def __init__(self, **kwargs):
+        System.__init__(self, **kwargs)
+        ClusterSystem.__init__(self, **kwargs)
+        # Create a voltage and clock domain for system components
+        self.voltage_domain = VoltageDomain(voltage="3.3V")
+        self.clk_domain = SrcClockDomain(
+            clock="1GHz", voltage_domain=self.voltage_domain
+        )
+
+        # Create the off-chip memory bus.
+        self.membus = SystemXBar()
+
+    def connect(self):
+        self.system_port = self.membus.cpu_side_ports
+
+
+class BaseSimpleSystem(ArmSystem, ClusterSystem):
+    cache_line_size = 64
+
+    def __init__(self, mem_size, platform, **kwargs):
+        ArmSystem.__init__(self, **kwargs)
+        ClusterSystem.__init__(self, **kwargs)
+
+        self.voltage_domain = VoltageDomain(voltage="1.0V")
+        self.clk_domain = SrcClockDomain(
+            clock="1GHz", voltage_domain=Parent.voltage_domain
+        )
+
+        if platform is None:
+            self.realview = VExpress_GEM5_V1()
+        else:
+            self.realview = platform
+
+        if hasattr(self.realview.gic, "cpu_addr"):
+            self.gic_cpu_addr = self.realview.gic.cpu_addr
+
+        self.terminal = Terminal()
+        self.vncserver = VncServer()
+
+        self.iobus = IOXBar()
+        # Device DMA -> MEM
+        self.mem_ranges = self.getMemRanges(int(Addr(mem_size)))
+
+    def getMemRanges(self, mem_size):
+        """
+        Define system memory ranges. This depends on the physical
+        memory map provided by the realview platform and by the memory
+        size provided by the user (mem_size argument).
+        The method is iterating over all platform ranges until they cover
+        the entire user's memory requirements.
+        """
+        mem_ranges = []
+        for mem_range in self.realview._mem_regions:
+            size_in_range = min(mem_size, mem_range.size())
+
+            mem_ranges.append(
+                AddrRange(start=mem_range.start, size=size_in_range)
+            )
+
+            mem_size -= size_in_range
+            if mem_size == 0:
+                return mem_ranges
+
+        raise ValueError("memory size too big for platform capabilities")
+
+
 class SimpleSystem(BaseSimpleSystem):
     """
     Meant to be used with the classic memory model
     """
 
     def __init__(self, caches, mem_size, platform=None, **kwargs):
-        super(SimpleSystem, self).__init__(mem_size, platform, **kwargs)
+        super().__init__(mem_size, platform, **kwargs)
 
         self.membus = MemBus()
         # CPUs->PIO
@@ -440,7 +501,7 @@ class ArmRubySystem(BaseSimpleSystem):
     """
 
     def __init__(self, mem_size, platform=None, **kwargs):
-        super(ArmRubySystem, self).__init__(mem_size, platform, **kwargs)
+        super().__init__(mem_size, platform, **kwargs)
         self._dma_ports = []
         self._mem_ports = []
 

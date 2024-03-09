@@ -40,6 +40,7 @@
 #include "gpu-compute/hsa_queue_entry.hh"
 #include "gpu-compute/shader.hh"
 #include "gpu-compute/wavefront.hh"
+#include "sim/sim_exit.hh"
 #include "sim/syscall_emul_buf.hh"
 #include "sim/system.hh"
 
@@ -50,7 +51,8 @@ GPUDispatcher::GPUDispatcher(const Params &p)
     : SimObject(p), shader(nullptr), gpuCmdProc(nullptr),
       tickEvent([this]{ exec(); },
           "GPU Dispatcher tick", false, Event::CPU_Tick_Pri),
-      dispatchActive(false), stats(this)
+      dispatchActive(false), kernelExitEvents(p.kernel_exit_events),
+      stats(this)
 {
     schedule(&tickEvent, 0);
 }
@@ -308,20 +310,10 @@ GPUDispatcher::notifyWgCompl(Wavefront *wf)
         gpuCmdProc->hsaPacketProc()
             .finishPkt(task->dispPktPtr(), task->queueId());
         if (task->completionSignal()) {
-            /**
-            * HACK: The semantics of the HSA signal is to decrement
-            * the current signal value. We cheat here and read out
-            * he value from main memory using functional access and
-            * then just DMA the decremented value.
-            */
-            uint64_t signal_value =
-                gpuCmdProc->functionalReadHsaSignal(task->completionSignal());
-
             DPRINTF(GPUDisp, "HSA AQL Kernel Complete with completion "
                     "signal! Addr: %d\n", task->completionSignal());
 
-            gpuCmdProc->updateHsaSignal(task->completionSignal(),
-                                        signal_value - 1);
+            gpuCmdProc->sendCompletionSignal(task->completionSignal());
         } else {
             DPRINTF(GPUDisp, "HSA AQL Kernel Complete! No completion "
                 "signal\n");
@@ -330,6 +322,10 @@ GPUDispatcher::notifyWgCompl(Wavefront *wf)
         DPRINTF(GPUWgLatency, "Kernel Complete ticks:%d kernel:%d\n",
                 curTick(), kern_id);
         DPRINTF(GPUKernelInfo, "Completed kernel %d\n", kern_id);
+
+        if (kernelExitEvents) {
+            shader->requestKernelExitEvent();
+        }
     }
 
     if (!tickEvent.scheduled()) {

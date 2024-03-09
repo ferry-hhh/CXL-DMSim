@@ -39,21 +39,29 @@
 import argparse
 import os
 import sys
+
 import m5
 import m5.util
 from m5.objects import *
 
 m5.util.addToPath("../../")
 
-from common import FSConfig
-from common import SysPaths
-from common import ObjectList
-from common import Options
-from common.cores.arm import ex5_big, ex5_LITTLE
-
 import devices
-from devices import AtomicCluster, KvmCluster, FastmodelCluster
-
+from common import (
+    FSConfig,
+    ObjectList,
+    Options,
+    SysPaths,
+)
+from common.cores.arm import (
+    ex5_big,
+    ex5_LITTLE,
+)
+from devices import (
+    AtomicCluster,
+    FastmodelCluster,
+    KvmCluster,
+)
 
 default_disk = "aarch64-ubuntu-trusty-headless.img"
 
@@ -79,7 +87,7 @@ def _using_pdes(root):
     return False
 
 
-class BigCluster(devices.CpuCluster):
+class BigCluster(devices.ArmCpuCluster):
     def __init__(self, system, num_cpus, cpu_clock, cpu_voltage="1.0V"):
         cpu_config = [
             ObjectList.cpu_list.get("O3_ARM_v7a_3"),
@@ -87,12 +95,10 @@ class BigCluster(devices.CpuCluster):
             devices.L1D,
             devices.L2,
         ]
-        super(BigCluster, self).__init__(
-            system, num_cpus, cpu_clock, cpu_voltage, *cpu_config
-        )
+        super().__init__(system, num_cpus, cpu_clock, cpu_voltage, *cpu_config)
 
 
-class LittleCluster(devices.CpuCluster):
+class LittleCluster(devices.ArmCpuCluster):
     def __init__(self, system, num_cpus, cpu_clock, cpu_voltage="1.0V"):
         cpu_config = [
             ObjectList.cpu_list.get("MinorCPU"),
@@ -100,9 +106,7 @@ class LittleCluster(devices.CpuCluster):
             devices.L1D,
             devices.L2,
         ]
-        super(LittleCluster, self).__init__(
-            system, num_cpus, cpu_clock, cpu_voltage, *cpu_config
-        )
+        super().__init__(system, num_cpus, cpu_clock, cpu_voltage, *cpu_config)
 
 
 class Ex5BigCluster(devices.CpuCluster):
@@ -113,9 +117,7 @@ class Ex5BigCluster(devices.CpuCluster):
             ex5_big.L1D,
             ex5_big.L2,
         ]
-        super(Ex5BigCluster, self).__init__(
-            system, num_cpus, cpu_clock, cpu_voltage, *cpu_config
-        )
+        super().__init__(system, num_cpus, cpu_clock, cpu_voltage, *cpu_config)
 
 
 class Ex5LittleCluster(devices.CpuCluster):
@@ -126,9 +128,7 @@ class Ex5LittleCluster(devices.CpuCluster):
             ex5_LITTLE.L1D,
             ex5_LITTLE.L2,
         ]
-        super(Ex5LittleCluster, self).__init__(
-            system, num_cpus, cpu_clock, cpu_voltage, *cpu_config
-        )
+        super().__init__(system, num_cpus, cpu_clock, cpu_voltage, *cpu_config)
 
 
 def createSystem(
@@ -339,10 +339,10 @@ def build(options):
         "lpj=19988480",
         "norandmaps",
         "loglevel=8",
-        "mem=%s" % options.mem_size,
-        "root=%s" % options.root,
+        f"mem={options.mem_size}",
+        f"root={options.root}",
         "rw",
-        "init=%s" % options.kernel_init,
+        f"init={options.kernel_init}",
         "vmalloc=768MB",
     ]
 
@@ -376,7 +376,7 @@ def build(options):
         system.bigCluster = big_model(
             system, options.big_cpus, options.big_cpu_clock
         )
-        system.mem_mode = system.bigCluster.memoryMode()
+        system.mem_mode = system.bigCluster.memory_mode()
         all_cpus += system.bigCluster.cpus
 
     # little cluster
@@ -384,23 +384,24 @@ def build(options):
         system.littleCluster = little_model(
             system, options.little_cpus, options.little_cpu_clock
         )
-        system.mem_mode = system.littleCluster.memoryMode()
+        system.mem_mode = system.littleCluster.memory_mode()
         all_cpus += system.littleCluster.cpus
 
     # Figure out the memory mode
     if (
         options.big_cpus > 0
         and options.little_cpus > 0
-        and system.bigCluster.memoryMode() != system.littleCluster.memoryMode()
+        and system.bigCluster.memory_mode()
+        != system.littleCluster.memory_mode()
     ):
         m5.util.panic("Memory mode missmatch among CPU clusters")
 
     # create caches
     system.addCaches(options.caches, options.last_cache_level)
     if not options.caches:
-        if options.big_cpus > 0 and system.bigCluster.requireCaches():
+        if options.big_cpus > 0 and system.bigCluster.require_caches():
             m5.util.panic("Big CPU model requires caches")
-        if options.little_cpus > 0 and system.littleCluster.requireCaches():
+        if options.little_cpus > 0 and system.littleCluster.require_caches():
             m5.util.panic("Little CPU model requires caches")
 
     # Create a KVM VM and do KVM-specific configuration
@@ -417,7 +418,8 @@ def build(options):
         system.generateDtb(system.workload.dtb_filename)
 
     if devices.have_fastmodel and issubclass(big_model, FastmodelCluster):
-        from m5 import arm_fast_model as fm, systemc as sc
+        from m5 import arm_fast_model as fm
+        from m5 import systemc as sc
 
         # setup FastModels for simulation
         fm.setup_simulation("cortexa76")

@@ -52,22 +52,29 @@ scons build/X86/gem5.opt
 
 """
 
-from gem5.simulate.exit_event import ExitEvent
-from gem5.simulate.simulator import Simulator
-from gem5.utils.requires import requires
+from pathlib import Path
+
+from m5.stats import (
+    dump,
+    reset,
+)
+
+from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
 )
-from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.memory import DualChannelDDR4_2400
-from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.cpu_types import CPUTypes
+from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.isas import ISA
-from gem5.resources.resource import Resource
+from gem5.resources.resource import (
+    SimpointResource,
+    obtain_resource,
+)
 from gem5.resources.workload import Workload
-
-from pathlib import Path
-from m5.stats import reset, dump
+from gem5.simulate.exit_event import ExitEvent
+from gem5.simulate.simulator import Simulator
+from gem5.utils.requires import requires
 
 requires(isa_required=ISA.X86)
 
@@ -96,11 +103,29 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
-# Here we obtain the workloadfrom gem5 resources, the checkpoint in this
+# Here we obtain the workload from gem5 resources, the checkpoint in this
 # workload was generated from
 # `configs/example/gem5_library/checkpoints/simpoints-se-checkpoint.py`.
-board.set_workload(
-    Workload("x86-print-this-15000-with-simpoints-and-checkpoint")
+# board.set_workload(
+#    Workload("x86-print-this-15000-with-simpoints-and-checkpoint")
+#
+# **Note: This has been removed until we update the resources.json file to
+# encapsulate the new Simpoint format.
+# Below we set the simpount manually.
+#
+# This loads a single checkpoint as an example of using simpoints to simulate
+# the function of a single simpoint region.
+
+board.set_se_simpoint_workload(
+    binary=obtain_resource("x86-print-this"),
+    arguments=["print this", 15000],
+    simpoint=SimpointResource(
+        simpoint_interval=1000000,
+        simpoint_list=[2, 3, 4, 15],
+        weight_list=[0.1, 0.2, 0.4, 0.3],
+        warmup_interval=1000000,
+    ),
+    checkpoint=obtain_resource("simpoints-se-checkpoints-v23-0-v1"),
 )
 
 

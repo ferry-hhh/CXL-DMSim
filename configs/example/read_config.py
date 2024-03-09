@@ -68,8 +68,7 @@ sim_object_classes_by_name = {
 
 def no_parser(cls, flags, param):
     raise Exception(
-        "Can't parse string: %s for parameter"
-        " class: %s" % (str(param), cls.__name__)
+        f"Can't parse string: {str(param)} for parameter class: {cls.__name__}"
     )
 
 
@@ -114,7 +113,7 @@ def memory_bandwidth_parser(cls, flags, param):
     value = 1.0 / float(param)
     # Convert to byte/s
     value = ticks.fromSeconds(value)
-    return cls("%fB/s" % value)
+    return cls(f"{value:f}B/s")
 
 
 # These parameters have trickier parsing from .ini files than might be
@@ -141,7 +140,7 @@ for name, parser in list(param_parsers.items()):
     setattr(m5.params.__dict__[name], "parse_ini", classmethod(parser))
 
 
-class PortConnection(object):
+class PortConnection:
     """This class is similar to m5.params.PortRef but with just enough
     information for ConfigManager"""
 
@@ -152,7 +151,7 @@ class PortConnection(object):
 
     @classmethod
     def from_string(cls, str):
-        m = re.match("(.*)\.([^.\[]+)(\[(\d+)\])?", str)
+        m = re.match(r"(.*)\.([^.\[]+)(\[(\d+)\])?", str)
         object_name, port_name, whole_index, index = m.groups()
         if index is not None:
             index = int(index)
@@ -179,7 +178,7 @@ def to_list(v):
         return [v]
 
 
-class ConfigManager(object):
+class ConfigManager:
     """Manager for parsing a Root configuration from a config file"""
 
     def __init__(self, config):
@@ -201,8 +200,7 @@ class ConfigManager(object):
 
         if object_type not in sim_object_classes_by_name:
             raise Exception(
-                "No SimObject type %s is available to"
-                " build: %s" % (object_type, object_name)
+                f"No SimObject type {object_type} is available to build: {object_name}"
             )
 
         object_class = sim_object_classes_by_name[object_type]
@@ -298,7 +296,7 @@ class ConfigManager(object):
     def parse_port_name(self, port):
         """Parse the name of a port"""
 
-        m = re.match("(.*)\.([^.\[]+)(\[(\d+)\])?", port)
+        m = re.match(r"(.*)\.([^.\[]+)(\[(\d+)\])?", port)
         peer, peer_port, whole_index, index = m.groups()
         if index is not None:
             index = int(index)
@@ -368,7 +366,6 @@ class ConfigManager(object):
             if port_has_correct_index(from_port) and port_has_correct_index(
                 to_port
             ):
-
                 connections_to_make.append((from_port, to_port))
 
                 increment_port_index(from_port)
@@ -418,7 +415,7 @@ class ConfigManager(object):
         self.bind_ports(connections)
 
 
-class ConfigFile(object):
+class ConfigFile:
     def get_flags(self):
         return set()
 
@@ -447,7 +444,7 @@ class ConfigFile(object):
         pass
 
     def get_port_peers(self, object_name, port_name):
-        """Get the list of connected port names (in the string form
+        r"""Get the list of connected port names (in the string form
         object.port(\[index\])?) of the port object_name.port_name"""
         pass
 
@@ -479,7 +476,7 @@ class ConfigIniFile(ConfigFile):
             if object_name == "root":
                 return child_name
             else:
-                return "%s.%s" % (object_name, child_name)
+                return f"{object_name}.{child_name}"
 
         return [(name, make_path(name)) for name in child_names]
 
@@ -510,7 +507,7 @@ class ConfigJsonFile(ConfigFile):
                 self.find_all_objects(elem)
 
     def load(self, config_file):
-        root = json.load(open(config_file, "r"))
+        root = json.load(open(config_file))
         self.object_dicts = {}
         self.find_all_objects(root)
 

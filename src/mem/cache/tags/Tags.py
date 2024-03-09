@@ -33,10 +33,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.params import *
-from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 from m5.objects.IndexingPolicies import *
+from m5.params import *
+from m5.proxy import *
 
 
 class BaseTags(ClockedObject):
@@ -139,7 +139,7 @@ class FALRU(BaseTags):
     cxx_class = "gem5::FALRU"
 
     min_tracked_cache_size = Param.MemorySize(
-        "128KiB", "Minimum cache size" " for which we track statistics"
+        "128KiB", "Minimum cache size for which we track statistics"
     )
 
     # This tag uses its own embedded indexing

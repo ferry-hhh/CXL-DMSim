@@ -27,17 +27,17 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from common import (
+    GPUTLBConfig,
+    Simulation,
+)
+from common.Benchmarks import *
+from common.FSConfig import *
+from example.gpufs.Disjoint_VIPER import *
+from ruby import Ruby
 from system.amdgpu import *
 
 from m5.util import panic
-
-from common.Benchmarks import *
-from common.FSConfig import *
-from common import GPUTLBConfig
-from common import Simulation
-from ruby import Ruby
-
-from example.gpufs.Disjoint_VIPER import *
 
 
 def makeGpuFSSystem(args):
@@ -50,7 +50,7 @@ def makeGpuFSSystem(args):
         "earlyprintk=ttyS0",
         "console=ttyS0,9600",
         "lpj=7999923",
-        "root=/dev/sda1",
+        f"root={args.root_partition}",
         "drm_kms_helper.fbdev_emulation=0",
         "modprobe.blacklist=amdgpu",
         "modprobe.blacklist=psmouse",
@@ -61,7 +61,9 @@ def makeGpuFSSystem(args):
         panic("Need at least 2GB of system memory to load amdgpu module")
 
     # Use the common FSConfig to setup a Linux X86 System
-    (TestCPUClass, test_mem_mode, FutureClass) = Simulation.setCPUClass(args)
+    (TestCPUClass, test_mem_mode) = Simulation.getCPUClass(args.cpu_type)
+    if test_mem_mode == "atomic":
+        test_mem_mode = "atomic_noncaching"
     disks = [args.disk_image]
     if args.second_disk is not None:
         disks.extend([args.second_disk])
@@ -91,10 +93,11 @@ def makeGpuFSSystem(args):
 
     # Create specified number of CPUs. GPUFS really only needs one.
     system.cpu = [
-        X86KvmCPU(clk_domain=system.cpu_clk_domain, cpu_id=i)
+        TestCPUClass(clk_domain=system.cpu_clk_domain, cpu_id=i)
         for i in range(args.num_cpus)
     ]
-    system.kvm_vm = KvmVM()
+    if ObjectList.is_kvm_cpu(TestCPUClass):
+        system.kvm_vm = KvmVM()
 
     # Create AMDGPU and attach to southbridge
     shader = createGPU(system, args)
@@ -112,7 +115,8 @@ def makeGpuFSSystem(args):
         numHWQueues=args.num_hw_queues,
         walker=hsapp_pt_walker,
     )
-    dispatcher = GPUDispatcher()
+    dispatcher_exit_events = True if args.exit_at_gpu_kernel > -1 else False
+    dispatcher = GPUDispatcher(kernel_exit_events=dispatcher_exit_events)
     cp_pt_walker = VegaPagetableWalker()
     gpu_cmd_proc = GPUCommandProcessor(
         hsapp=gpu_hsapp, dispatcher=dispatcher, walker=cp_pt_walker
@@ -126,15 +130,55 @@ def makeGpuFSSystem(args):
     device_ih = AMDGPUInterruptHandler()
     system.pc.south_bridge.gpu.device_ih = device_ih
 
-    # Setup the SDMA engines
-    sdma0_pt_walker = VegaPagetableWalker()
-    sdma1_pt_walker = VegaPagetableWalker()
+    # Setup the SDMA engines depending on device. The MMIO base addresses
+    # can be found in the driver code under:
+    # include/asic_reg/sdmaX/sdmaX_Y_Z_offset.h
+    num_sdmas = 2
+    sdma_bases = []
+    sdma_sizes = []
+    if args.gpu_device == "Vega10":
+        num_sdmas = 2
+        sdma_bases = [0x4980, 0x5180]
+        sdma_sizes = [0x800] * 2
+    elif args.gpu_device == "MI100":
+        num_sdmas = 8
+        sdma_bases = [
+            0x4980,
+            0x6180,
+            0x78000,
+            0x79000,
+            0x7A000,
+            0x7B000,
+            0x7C000,
+            0x7D000,
+        ]
+        sdma_sizes = [0x1000] * 8
+    elif args.gpu_device == "MI200":
+        num_sdmas = 5
+        sdma_bases = [
+            0x4980,
+            0x6180,
+            0x78000,
+            0x79000,
+            0x7A000,
+        ]
+        sdma_sizes = [0x1000] * 5
+    else:
+        m5.util.panic(f"Unknown GPU device {args.gpu_device}")
 
-    sdma0 = SDMAEngine(walker=sdma0_pt_walker)
-    sdma1 = SDMAEngine(walker=sdma1_pt_walker)
+    sdma_pt_walkers = []
+    sdma_engines = []
+    for sdma_idx in range(num_sdmas):
+        sdma_pt_walker = VegaPagetableWalker()
+        sdma_engine = SDMAEngine(
+            walker=sdma_pt_walker,
+            mmio_base=sdma_bases[sdma_idx],
+            mmio_size=sdma_sizes[sdma_idx],
+        )
+        sdma_pt_walkers.append(sdma_pt_walker)
+        sdma_engines.append(sdma_engine)
 
-    system.pc.south_bridge.gpu.sdma0 = sdma0
-    system.pc.south_bridge.gpu.sdma1 = sdma1
+    system.pc.south_bridge.gpu.sdmas = sdma_engines
 
     # Setup PM4 packet processor
     pm4_pkt_proc = PM4PacketProcessor()
@@ -152,22 +196,22 @@ def makeGpuFSSystem(args):
     system._dma_ports.append(gpu_hsapp)
     system._dma_ports.append(gpu_cmd_proc)
     system._dma_ports.append(system.pc.south_bridge.gpu)
-    system._dma_ports.append(sdma0)
-    system._dma_ports.append(sdma1)
+    for sdma in sdma_engines:
+        system._dma_ports.append(sdma)
     system._dma_ports.append(device_ih)
     system._dma_ports.append(pm4_pkt_proc)
     system._dma_ports.append(system_hub)
     system._dma_ports.append(gpu_mem_mgr)
     system._dma_ports.append(hsapp_pt_walker)
     system._dma_ports.append(cp_pt_walker)
-    system._dma_ports.append(sdma0_pt_walker)
-    system._dma_ports.append(sdma1_pt_walker)
+    for sdma_pt_walker in sdma_pt_walkers:
+        system._dma_ports.append(sdma_pt_walker)
 
     gpu_hsapp.pio = system.iobus.mem_side_ports
     gpu_cmd_proc.pio = system.iobus.mem_side_ports
     system.pc.south_bridge.gpu.pio = system.iobus.mem_side_ports
-    sdma0.pio = system.iobus.mem_side_ports
-    sdma1.pio = system.iobus.mem_side_ports
+    for sdma in sdma_engines:
+        sdma.pio = system.iobus.mem_side_ports
     device_ih.pio = system.iobus.mem_side_ports
     pm4_pkt_proc.pio = system.iobus.mem_side_ports
     system_hub.pio = system.iobus.mem_side_ports
@@ -187,7 +231,43 @@ def makeGpuFSSystem(args):
         clock=args.ruby_clock, voltage_domain=system.voltage_domain
     )
 
-    for (i, cpu) in enumerate(system.cpu):
+    # If we are using KVM cpu, enable AVX. AVX is used in some ROCm libraries
+    # such as rocBLAS which is used in higher level libraries like PyTorch.
+    use_avx = False
+    if ObjectList.is_kvm_cpu(TestCPUClass) and not args.disable_avx:
+        # AVX also requires CR4.osxsave to be 1. These must be set together
+        # of KVM will error out.
+        system.workload.enable_osxsave = 1
+        use_avx = True
+
+    # These values are taken from a real CPU and are further explained here:
+    # https://sandpile.org/x86/cpuid.htm#level_0000_000Dh
+    avx_extended_state = [
+        0x00000007,
+        0x00000340,
+        0x00000000,
+        0x00000340,
+        0x0000000F,
+        0x00000340,
+        0x00000000,
+        0x00000000,
+        0x00000100,
+        0x00000240,
+        0x00000000,
+        0x00000040,
+        0x00000000,
+        0x00000000,
+        0x00000000,
+        0x00000000,
+    ]
+
+    # This modifies the default value for ECX only (4th in this array).
+    # See: https://sandpile.org/x86/cpuid.htm#level_0000_0001h
+    # Enables AVX, OSXSAVE, XSAVE, POPCNT, SSE4.2, SSE4.1, CMPXCHG16B,
+    # and FMA.
+    avx_cpu_features = [0x00020F51, 0x00000805, 0xEFDBFBFF, 0x1C983209]
+
+    for i, cpu in enumerate(system.cpu):
         # Break once we reach the shader "CPU"
         if i == args.num_cpus:
             break
@@ -203,6 +283,9 @@ def makeGpuFSSystem(args):
 
         for j in range(len(system.cpu[i].isa)):
             system.cpu[i].isa[j].vendor_string = "AuthenticAMD"
+            if use_avx:
+                system.cpu[i].isa[j].ExtendedState = avx_extended_state
+                system.cpu[i].isa[j].FamilyModelStepping = avx_cpu_features
 
     if args.host_parallel:
         # To get the KVM CPUs to run on different host CPUs, specify a
@@ -212,6 +295,12 @@ def makeGpuFSSystem(args):
             for obj in cpu.descendants():
                 obj.eventq_index = 0
             cpu.eventq_index = i + 1
+
+    # Disable KVM Perf counters if specified. This is useful for machines
+    # with more restrictive KVM paranoid levels.
+    if args.no_kvm_perf and ObjectList.is_kvm_cpu(TestCPUClass):
+        for i, cpu in enumerate(system.cpu[:-1]):
+            cpu.usePerf = False
 
     gpu_port_idx = (
         len(system.ruby._cpu_ports)

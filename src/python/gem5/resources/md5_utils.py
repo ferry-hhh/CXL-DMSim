@@ -1,4 +1,5 @@
-# Copyright (c) 2022 The Regents of the University of California
+# Copyright (c) 2022-2023 The Regents of the University of California
+# Copyright (c) 2023 COSEDA Technologies GmbH
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,20 +25,39 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from pathlib import Path
 import hashlib
-from _hashlib import HASH as Hash
+from pathlib import Path
+from typing import Type
 
 
-def _md5_update_from_file(filename: Path, hash: Hash) -> Hash:
+def _md5_update_from_file(
+    filename: Path, hash: Type[hashlib.md5]
+) -> Type[hashlib.md5]:
     assert filename.is_file()
-    with open(str(filename), "rb") as f:
+
+    if filename.stat().st_size < 1024 * 1024 * 100:
+        from ..utils.progress_bar import FakeTQDM
+
+        # if the file is less than 100MB, no need to show a progress bar.
+        tqdm = FakeTQDM()
+    else:
+        from ..utils.progress_bar import tqdm
+
+    with tqdm.wrapattr(
+        open(str(filename), "rb"),
+        "read",
+        miniters=1,
+        desc=f"Computing md5sum on {filename}",
+        total=filename.stat().st_size,
+    ) as f:
         for chunk in iter(lambda: f.read(4096), b""):
             hash.update(chunk)
     return hash
 
 
-def _md5_update_from_dir(directory: Path, hash: Hash) -> Hash:
+def _md5_update_from_dir(
+    directory: Path, hash: Type[hashlib.md5]
+) -> Type[hashlib.md5]:
     assert directory.is_dir()
     for path in sorted(directory.iterdir(), key=lambda p: str(p).lower()):
         hash.update(path.name.encode())
@@ -50,8 +70,8 @@ def _md5_update_from_dir(directory: Path, hash: Hash) -> Hash:
 
 def md5(path: Path) -> str:
     """
-    Gets the md5 value of a file or directory. `md5_file` is used if the path
-    is a file and `md5_dir` is used if the path is a directory. An exception
+    Gets the md5 value of a file or directory. ``md5_file`` is used if the path
+    is a file and ``md5_dir`` is used if the path is a directory. An exception
     is returned if the path is not a valid file or directory.
 
     :param path: The path to get the md5 of.
@@ -66,7 +86,7 @@ def md5(path: Path) -> str:
 
 def md5_file(filename: Path) -> str:
     """
-    Gives the md5 hash of a file
+    Gives the md5 hash of a file.
 
     :filename: The file in which the md5 is to be calculated.
     """
@@ -79,7 +99,9 @@ def md5_dir(directory: Path) -> str:
 
     This is achieved by getting the md5 hash of all files in the directory.
 
-    Note: The path of files are also hashed so the md5 of the directory changes
-    if empty files are included or filenames are changed.
+    .. note::
+
+        The path of files are also hashed so the md5 of the directory changes
+        if empty files are included or filenames are changed.
     """
     return str(_md5_update_from_dir(directory, hashlib.md5()).hexdigest())

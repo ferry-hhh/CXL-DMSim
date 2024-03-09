@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2017 ARM Limited
+# Copyright (c) 2016-2017, 2022-2023 Arm Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -38,21 +38,22 @@ Research Starter Kit on System Modeling. More information can be found
 at: http://www.arm.com/ResearchEnablement/SystemModeling
 """
 
-import os
-import m5
-from m5.util import addToPath
-from m5.objects import *
 import argparse
+import os
 import shlex
+
+import m5
+from m5.objects import *
+from m5.util import addToPath
 
 m5.util.addToPath("../..")
 
-from common import ObjectList
-from common import MemConfig
-from common.cores.arm import HPI
-
 import devices
-
+from common import (
+    MemConfig,
+    ObjectList,
+)
+from common.cores.arm import HPI
 
 # Pre-defined CPU configurations. Each tuple must be ordered as : (cpu_class,
 # l1_icache_class, l1_dcache_class, walk_cache_class, l2_Cache_class). Any of
@@ -62,66 +63,6 @@ cpu_types = {
     "minor": (MinorCPU, devices.L1I, devices.L1D, devices.L2),
     "hpi": (HPI.HPI, HPI.HPI_ICache, HPI.HPI_DCache, HPI.HPI_L2),
 }
-
-
-class SimpleSeSystem(System):
-    """
-    Example system class for syscall emulation mode
-    """
-
-    # Use a fixed cache line size of 64 bytes
-    cache_line_size = 64
-
-    def __init__(self, args, **kwargs):
-        super(SimpleSeSystem, self).__init__(**kwargs)
-
-        # Setup book keeping to be able to use CpuClusters from the
-        # devices module.
-        self._clusters = []
-        self._num_cpus = 0
-
-        # Create a voltage and clock domain for system components
-        self.voltage_domain = VoltageDomain(voltage="3.3V")
-        self.clk_domain = SrcClockDomain(
-            clock="1GHz", voltage_domain=self.voltage_domain
-        )
-
-        # Create the off-chip memory bus.
-        self.membus = SystemXBar()
-
-        # Wire up the system port that gem5 uses to load the kernel
-        # and to perform debug accesses.
-        self.system_port = self.membus.cpu_side_ports
-
-        # Add CPUs to the system. A cluster of CPUs typically have
-        # private L1 caches and a shared L2 cache.
-        self.cpu_cluster = devices.CpuCluster(
-            self, args.num_cores, args.cpu_freq, "1.2V", *cpu_types[args.cpu]
-        )
-
-        # Create a cache hierarchy (unless we are simulating a
-        # functional CPU in atomic memory mode) for the CPU cluster
-        # and connect it to the shared memory bus.
-        if self.cpu_cluster.memoryMode() == "timing":
-            self.cpu_cluster.addL1()
-            self.cpu_cluster.addL2(self.cpu_cluster.clk_domain)
-        self.cpu_cluster.connectMemSide(self.membus)
-
-        # Tell gem5 about the memory mode used by the CPUs we are
-        # simulating.
-        self.mem_mode = self.cpu_cluster.memoryMode()
-
-    def numCpuClusters(self):
-        return len(self._clusters)
-
-    def addCpuCluster(self, cpu_cluster, num_cpus):
-        assert cpu_cluster not in self._clusters
-        assert num_cpus > 0
-        self._clusters.append(cpu_cluster)
-        self._num_cpus += num_cpus
-
-    def numCpus(self):
-        return self._num_cpus
 
 
 def get_processes(cmd):
@@ -144,7 +85,31 @@ def get_processes(cmd):
 def create(args):
     """Create and configure the system object."""
 
-    system = SimpleSeSystem(args)
+    cpu_class = cpu_types[args.cpu][0]
+    mem_mode = cpu_class.memory_mode()
+    # Only simulate caches when using a timing CPU (e.g., the HPI model)
+    want_caches = True if mem_mode == "timing" else False
+
+    system = devices.SimpleSeSystem(
+        mem_mode=mem_mode,
+    )
+
+    # Add CPUs to the system. A cluster of CPUs typically have
+    # private L1 caches and a shared L2 cache.
+    system.cpu_cluster = devices.ArmCpuCluster(
+        system,
+        args.num_cores,
+        args.cpu_freq,
+        "1.2V",
+        *cpu_types[args.cpu],
+        tarmac_gen=args.tarmac_gen,
+        tarmac_dest=args.tarmac_dest,
+    )
+
+    # Create a cache hierarchy for the cluster. We are assuming that
+    # clusters have core-private L1 caches and an L2 that's shared
+    # within the cluster.
+    system.addCaches(want_caches, last_cache_level=2)
 
     # Tell components about the expected physical memory ranges. This
     # is, for example, used by the MemConfig helper to determine where
@@ -153,6 +118,9 @@ def create(args):
 
     # Configure the off-chip memory system.
     MemConfig.config_mem(args, system)
+
+    # Wire up the system's memory system
+    system.connect()
 
     # Parse the command line and get a list of Processes instances
     # that we can pass to gem5.
@@ -215,6 +183,17 @@ def main():
         default="2GB",
         help="Specify the physical memory size",
     )
+    parser.add_argument(
+        "--tarmac-gen",
+        action="store_true",
+        help="Write a Tarmac trace.",
+    )
+    parser.add_argument(
+        "--tarmac-dest",
+        choices=TarmacDump.vals,
+        default="stdoutput",
+        help="Destination for the Tarmac trace output. [Default: stdoutput]",
+    )
 
     args = parser.parse_args()
 
@@ -240,8 +219,7 @@ def main():
     # Print the reason for the simulation exit. Some exit codes are
     # requests for service (e.g., checkpoints) from the simulation
     # script. We'll just ignore them here and exit.
-    print(event.getCause(), " @ ", m5.curTick())
-    sys.exit(event.getCode())
+    print(f"{event.getCause()} ({event.getCode()}) @ {m5.curTick()}")
 
 
 if __name__ == "__m5_main__":

@@ -27,9 +27,9 @@
 """Tests for gem5Run object"""
 
 import hashlib
-from pathlib import Path
 import os
 import unittest
+from pathlib import Path
 from uuid import uuid4
 
 from gem5art.artifact import artifact
@@ -112,7 +112,7 @@ class TestSERun(unittest.TestCase):
             [
                 "gem5/build/X86/gem5.opt",
                 "-re",
-                "--outdir={}".format(os.path.abspath("results/run_test/out")),
+                f"--outdir={os.path.abspath('results/run_test/out')}",
                 "configs-tests/run_test.py",
                 "extra",
                 "params",

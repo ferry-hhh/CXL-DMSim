@@ -35,13 +35,25 @@ experiment is reproducible and the output is saved to the database.
 import hashlib
 import json
 import os
-from pathlib import Path
 import signal
 import subprocess
 import time
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
-from uuid import UUID, uuid4
 import zipfile
+from pathlib import Path
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
+from uuid import (
+    UUID,
+    uuid4,
+)
 
 from gem5art import artifact
 from gem5art.artifact import Artifact
@@ -316,7 +328,7 @@ class gem5Run:
         try:
             return cls.loadFromDict(d)
         except KeyError:
-            print("Incompatible json file: {}!".format(filename))
+            print(f"Incompatible json file: {filename}!")
             raise
 
     @classmethod
@@ -521,7 +533,7 @@ class gem5Run:
             # Check again in five seconds
             time.sleep(5)
 
-        print("Done running {}".format(" ".join(self.command)))
+        print(f"Done running {' '.join(self.command)}")
 
         # Done executing
         self.running = False
@@ -540,7 +552,7 @@ class gem5Run:
         # Store current gem5 run in the database
         db.put(self._id, self._getSerializable())
 
-        print("Done storing the results of {}".format(" ".join(self.command)))
+        print(f"Done storing the results of {' '.join(self.command)}")
 
     def run(self, task: Any = None, cwd: str = ".") -> None:
         """Actually run the test.
@@ -672,7 +684,6 @@ def getRunsByNameLike(
 def getRerunnableRunsByNameLike(
     db: ArtifactDB, name: str, fs_only: bool = False, limit: int = 0
 ) -> Iterable[gem5Run]:
-
     """Returns a generator of gem5Run objects having rerunnable as true
     and the object "name" containing the name parameter as a substring. The
     parameter is case sensitive.

@@ -29692,7 +29692,7 @@ namespace Gcn3ISA
                 for (int i = 0; i < 4 ; ++i) {
                     VecElemU32 permuted_val = permute(selector, 0xFF
                         & ((VecElemU32)src2[lane] >> (8 * i)));
-                    vdst[lane] |= (permuted_val << i);
+                    vdst[lane] |= (permuted_val << (8 * i));
                 }
 
                 DPRINTF(GCN3, "v_perm result: 0x%08x\n", vdst[lane]);
@@ -32123,9 +32123,9 @@ namespace Gcn3ISA
 
         for (int lane = 0; lane < NumVecElemPerVecReg; ++lane) {
             if (gpuDynInst->exec_mask[lane]) {
-                vdst0[lane] = (reinterpret_cast<VecElemU64*>(
+                vdst0[lane] = (reinterpret_cast<VecElemU32*>(
                     gpuDynInst->d_data))[lane * 2];
-                vdst1[lane] = (reinterpret_cast<VecElemU64*>(
+                vdst1[lane] = (reinterpret_cast<VecElemU32*>(
                     gpuDynInst->d_data))[lane * 2 + 1];
             }
         }

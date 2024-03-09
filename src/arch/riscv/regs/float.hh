@@ -105,7 +105,7 @@ static constexpr float64_t f64(freg_t r) { return r; }
 static constexpr freg_t freg(float16_t f) { return {boxF16(f.v)}; }
 static constexpr freg_t freg(float32_t f) { return {boxF32(f.v)}; }
 static constexpr freg_t freg(float64_t f) { return f; }
-static constexpr freg_t freg(uint_fast16_t f) { return {f}; }
+static constexpr freg_t freg(uint_fast64_t f) { return {f}; }
 
 namespace float_reg
 {
@@ -210,6 +210,20 @@ const std::vector<std::string> RegNames = {
 };
 
 } // namespace float_reg
+
+inline float32_t
+fsgnj32(float32_t a, float32_t b, bool n, bool x) {
+    if (n) b.v = ~b.v;
+    else if (x) b.v = a.v ^ b.v;
+    return f32(insertBits(b.v, 30, 0, a.v));
+}
+
+inline float64_t
+fsgnj64(float64_t a, float64_t b, bool n, bool x) {
+    if (n) b.v = ~b.v;
+    else if (x) b.v = a.v ^ b.v;
+    return f64(insertBits(b.v, 62, 0, a.v));
+}
 
 } // namespace RiscvISA
 } // namespace gem5

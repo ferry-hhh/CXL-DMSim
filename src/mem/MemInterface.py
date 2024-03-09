@@ -38,10 +38,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects.AbstractMemory import AbstractMemory
 from m5.params import *
 from m5.proxy import *
 
-from m5.objects.AbstractMemory import AbstractMemory
 
 # Enum for the address mapping. With Ch, Ra, Ba, Ro and Co denoting
 # channel, rank, bank, row and column, respectively, and going from
@@ -73,11 +73,11 @@ class MemInterface(AbstractMemory):
     device_size = Param.MemorySize("Size of memory device")
     # the physical organisation of the memory
     device_bus_width = Param.Unsigned(
-        "data bus width in bits for each " "memory device/chip"
+        "data bus width in bits for each memory device/chip"
     )
     burst_length = Param.Unsigned("Burst lenght (BL) in beats")
     device_rowbuffer_size = Param.MemorySize(
-        "Page (row buffer) size per " "device/chip"
+        "Page (row buffer) size per device/chip"
     )
     devices_per_rank = Param.Unsigned("Number of devices/chips per rank")
     ranks_per_channel = Param.Unsigned("Number of ranks per channel")
@@ -96,7 +96,7 @@ class MemInterface(AbstractMemory):
     # Read/Write requests with data size larger than one full burst are broken
     # down into multiple requests in the controller
     tBURST = Param.Latency(
-        "Burst duration " "(typically burst length / 2 cycles)"
+        "Burst duration (typically burst length / 2 cycles)"
     )
 
     # write-to-read, same rank turnaround penalty

@@ -35,7 +35,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(FastModel, fastmodel);
 namespace fastmodel
 {
 
@@ -229,7 +228,7 @@ Iris::ThreadContext::IdxNameMap CortexA76TC::miscRegIdxNameMap({
         // ArmISA::MISCREG_SCTLR_RST?
         { ArmISA::MISCREG_SEV_MAILBOX, "SEV_STATE" },
 
-        // AArch32 CP14 registers (debug/trace/ThumbEE/Jazelle control)
+        // AArch32 CP14 registers (debug/trace control)
         // ArmISA::MISCREG_DBGDIDR?
         // ArmISA::MISCREG_DBGDSCRint?
         // ArmISA::MISCREG_DBGDCCINT?

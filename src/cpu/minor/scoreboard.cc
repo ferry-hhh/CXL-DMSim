@@ -44,7 +44,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Minor, minor);
 namespace minor
 {
 
@@ -63,12 +62,19 @@ Scoreboard::findIndex(const RegId& reg, Index &scoreboard_index)
         ret = true;
         break;
       case VecRegClass:
-      case VecElemClass:
         scoreboard_index = vecRegOffset + reg.index();
+        ret = true;
+        break;
+      case VecElemClass:
+        scoreboard_index = vecRegElemOffset + reg.index();
         ret = true;
         break;
       case VecPredRegClass:
         scoreboard_index = vecPredRegOffset + reg.index();
+        ret = true;
+        break;
+      case MatRegClass:
+        scoreboard_index = matRegOffset + reg.index();
         ret = true;
         break;
       case CCRegClass:

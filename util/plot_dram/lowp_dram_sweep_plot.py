@@ -35,10 +35,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import PlotPowerStates as plotter
 import argparse
 import os
 from subprocess import call
+
+import PlotPowerStates as plotter
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -76,7 +77,7 @@ parser.add_argument("--pdf", action="store_true", help="output Latex and pdf")
 def main():
     args = parser.parse_args()
     if not os.path.isfile(args.statsfile):
-        exit("Error! File not found: %s" % args.statsfile)
+        exit(f"Error! File not found: {args.statsfile}")
     if not os.path.isdir(args.outdir):
         os.mkdir(args.outdir)
 
@@ -106,7 +107,7 @@ def main():
             filename = plotter.stateTimePlotName(str(delay) + "-")
             outfile.write(wrapForGraphic(filename, textwidth))
             outfile.write(getCaption(delay))
-        outfile.write("\end{figure}\n")
+        outfile.write("\\end{figure}\n")
 
         # Energy plots for all delay values
         outfile.write("\\begin{figure} \n\\centering\n")
@@ -140,7 +141,6 @@ def wrapForGraphic(filename, width="1.0"):
 
 
 def startDocText(outfile):
-
     start_stuff = """
 \\documentclass[a4paper,landscape,twocolumn]{article}
 
@@ -152,7 +152,6 @@ def startDocText(outfile):
 
 
 def endDocText(outfile):
-
     end_stuff = """
 
 \\end{document}

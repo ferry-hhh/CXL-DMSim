@@ -48,7 +48,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Compressor, compression);
 namespace compression
 {
 
@@ -79,7 +78,7 @@ Base::CompressionData::getSizeBits() const
 std::size_t
 Base::CompressionData::getSize() const
 {
-    return std::ceil(_size/8);
+    return std::ceil(_size/(float)CHAR_BIT);
 }
 
 Base::Base(const Params &p)

@@ -43,21 +43,46 @@
 #define __ARCH_RISCV_PCSTATE_HH__
 
 #include "arch/generic/pcstate.hh"
+#include "arch/riscv/regs/vector.hh"
+#include "enums/PrivilegeModeSet.hh"
+#include "enums/RiscvType.hh"
 
 namespace gem5
 {
-
 namespace RiscvISA
 {
 
+using RiscvType = enums::RiscvType;
+constexpr enums::RiscvType RV32 = enums::RV32;
+constexpr enums::RiscvType RV64 = enums::RV64;
+
+using PrivilegeModeSet = enums::PrivilegeModeSet;
+
 class PCState : public GenericISA::UPCState<4>
 {
-  private:
+  protected:
+    typedef GenericISA::UPCState<4> Base;
+
     bool _compressed = false;
-    bool _rv32 = false;
+    RiscvType _rvType = RV64;
+    uint64_t _vlenb = 32;
+    VTYPE _vtype = (1ULL << 63); // vtype.vill = 1 at initial;
+    uint32_t _vl = 0;
 
   public:
-    using GenericISA::UPCState<4>::UPCState;
+    PCState(const PCState &other) : Base(other),
+        _rvType(other._rvType), _vlenb(other._vlenb),
+        _vtype(other._vtype), _vl(other._vl)
+    {}
+    PCState &operator=(const PCState &other) = default;
+    PCState() = default;
+    explicit PCState(Addr addr) { set(addr); }
+    explicit PCState(Addr addr, RiscvType rvType, uint64_t vlenb)
+    {
+        set(addr);
+        _rvType = rvType;
+        _vlenb = vlenb;
+    }
 
     PCStateBase *clone() const override { return new PCState(*this); }
 
@@ -67,23 +92,65 @@ class PCState : public GenericISA::UPCState<4>
         Base::update(other);
         auto &pcstate = other.as<PCState>();
         _compressed = pcstate._compressed;
-        _rv32 = pcstate._rv32;
+        _rvType = pcstate._rvType;
+        _vlenb = pcstate._vlenb;
+        _vtype = pcstate._vtype;
+        _vl = pcstate._vl;
     }
 
     void compressed(bool c) { _compressed = c; }
     bool compressed() const { return _compressed; }
 
-    void rv32(bool val) { _rv32 = val; }
-    bool rv32() const { return _rv32; }
+    void rvType(RiscvType rvType) { _rvType = rvType; }
+    RiscvType rvType() const { return _rvType; }
+
+    void vlenb(uint64_t v) { _vlenb = v; }
+    uint64_t vlenb() const { return _vlenb; }
+
+    void vtype(VTYPE v) { _vtype = v; }
+    VTYPE vtype() const { return _vtype; }
+
+    void vl(uint32_t v) { _vl = v; }
+    uint32_t vl() const { return _vl; }
+
+    uint64_t size() const { return _compressed ? 2 : 4; }
 
     bool
     branching() const override
     {
-        if (_compressed) {
-            return npc() != pc() + 2 || nupc() != upc() + 1;
-        } else {
-            return npc() != pc() + 4 || nupc() != upc() + 1;
-        }
+        return npc() != pc() + size() || nupc() != upc() + 1;
+    }
+
+    bool
+    equals(const PCStateBase &other) const override
+    {
+        auto &opc = other.as<PCState>();
+        return Base::equals(other) &&
+            _vlenb == opc._vlenb &&
+            _vtype == opc._vtype &&
+            _vl == opc._vl;
+    }
+
+    void
+    serialize(CheckpointOut &cp) const override
+    {
+        Base::serialize(cp);
+        SERIALIZE_SCALAR(_rvType);
+        SERIALIZE_SCALAR(_vlenb);
+        SERIALIZE_SCALAR(_vtype);
+        SERIALIZE_SCALAR(_vl);
+        SERIALIZE_SCALAR(_compressed);
+    }
+
+    void
+    unserialize(CheckpointIn &cp) override
+    {
+        Base::unserialize(cp);
+        UNSERIALIZE_SCALAR(_rvType);
+        UNSERIALIZE_SCALAR(_vlenb);
+        UNSERIALIZE_SCALAR(_vtype);
+        UNSERIALIZE_SCALAR(_vl);
+        UNSERIALIZE_SCALAR(_compressed);
     }
 };
 

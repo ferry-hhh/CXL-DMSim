@@ -36,7 +36,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Linux, linux);
 namespace linux
 {
 
@@ -61,7 +60,7 @@ class ThreadInfo
             return false;
         }
 
-        data = TranslatingPortProxy(tc).read<T>(it->address, byteOrder);
+        data = TranslatingPortProxy(tc).read<T>(it->address(), byteOrder);
 
         return true;
     }

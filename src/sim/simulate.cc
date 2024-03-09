@@ -43,7 +43,6 @@
 #include "sim/simulate.hh"
 
 #include <atomic>
-#include <mutex>
 #include <thread>
 
 #include "base/logging.hh"
@@ -51,6 +50,7 @@
 #include "base/types.hh"
 #include "sim/async.hh"
 #include "sim/eventq.hh"
+#include "sim/init_signals.hh"
 #include "sim/sim_events.hh"
 #include "sim/sim_exit.hh"
 #include "sim/stat_control.hh"
@@ -184,9 +184,16 @@ struct DescheduleDeleter
  * via the 'set_max_tick' function prior. This function is exported to Python.
  * @return The SimLoopExitEvent that caused the loop to exit.
  */
+GlobalSimLoopExitEvent *global_exit_event= nullptr;
 GlobalSimLoopExitEvent *
 simulate(Tick num_cycles)
 {
+    // install the sigint handler to catch ctrl-c and exit the sim loop cleanly
+    // Note: This should be done before initializing the threads
+    initSigInt();
+
+    if (global_exit_event)//cleaning last global exit event
+        global_exit_event->clean();
     std::unique_ptr<GlobalSyncEvent, DescheduleDeleter> quantum_event;
 
     inform("Entering event queue @ %d.  Starting simulation...\n", curTick());
@@ -227,13 +234,16 @@ simulate(Tick num_cycles)
     Event *local_event = doSimLoop(mainEventQueue[0]);
     assert(local_event);
 
+    // Restore normal ctrl-c operation as soon as the event queue is done
+    restoreSigInt();
+
     inParallelMode = false;
 
     // locate the global exit event and return it to Python
     BaseGlobalEvent *global_event = local_event->globalEvent();
     assert(global_event);
 
-    GlobalSimLoopExitEvent *global_exit_event =
+    global_exit_event =
         dynamic_cast<GlobalSimLoopExitEvent *>(global_event);
     assert(global_exit_event);
 
@@ -271,28 +281,6 @@ terminateEventQueueThreads()
 
 
 /**
- * Test and clear the global async_event flag, such that each time the
- * flag is cleared, only one thread returns true (and thus is assigned
- * to handle the corresponding async event(s)).
- */
-static bool
-testAndClearAsyncEvent()
-{
-    static std::mutex mutex;
-
-    bool was_set = false;
-    mutex.lock();
-
-    if (async_event) {
-        was_set = true;
-        async_event = false;
-    }
-
-    mutex.unlock();
-    return was_set;
-}
-
-/**
  * The main per-thread simulation loop. This loop is executed by all
  * simulation threads (the main thread and the subordinate threads) in
  * parallel.
@@ -304,6 +292,8 @@ doSimLoop(EventQueue *eventq)
     curEventQueue(eventq);
     eventq->handleAsyncInsertions();
 
+    bool mainQueue = eventq == getEventQueue(0);
+
     while (1) {
         // there should always be at least one event (the SimLoopExitEvent
         // we just scheduled) in the queue
@@ -311,7 +301,8 @@ doSimLoop(EventQueue *eventq)
         assert(curTick() <= eventq->nextTick() &&
                "event scheduled in the past");
 
-        if (async_event && testAndClearAsyncEvent()) {
+        if (mainQueue && async_event) {
+            async_event = false;
             // Take the event queue lock in case any of the service
             // routines want to schedule new events.
             std::lock_guard<EventQueue> lock(*eventq);

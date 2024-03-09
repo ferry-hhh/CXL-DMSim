@@ -40,19 +40,19 @@
 
 import sys
 
-from m5.SimObject import *
 from m5.defines import buildEnv
+from m5.objects.ClockDomain import *
+from m5.objects.ClockedObject import ClockedObject
+from m5.objects.CPUTracers import ExeTracer
+from m5.objects.InstTracer import InstTracer
+from m5.objects.Platform import Platform
+from m5.objects.ResetPort import ResetResponsePort
+from m5.objects.SubSystem import SubSystem
+from m5.objects.XBar import L2XBar
 from m5.params import *
 from m5.proxy import *
+from m5.SimObject import *
 from m5.util.fdthelper import *
-
-from m5.objects.ClockedObject import ClockedObject
-from m5.objects.XBar import L2XBar
-from m5.objects.InstTracer import InstTracer
-from m5.objects.CPUTracers import ExeTracer
-from m5.objects.SubSystem import SubSystem
-from m5.objects.ClockDomain import *
-from m5.objects.Platform import Platform
 
 default_tracer = ExeTracer()
 
@@ -153,6 +153,8 @@ class BaseCPU(ClockedObject):
         "between CPU models)",
     )
 
+    model_reset = ResetResponsePort("Generic reset for the CPU")
+
     tracer = Param.InstTracer(default_tracer, "Instruction tracer")
 
     icache_port = RequestPort("Instruction Port")
@@ -169,13 +171,13 @@ class BaseCPU(ClockedObject):
 
     def connectCachedPorts(self, in_ports):
         for p in self._cached_ports:
-            exec("self.%s = in_ports" % p)
+            exec(f"self.{p} = in_ports")
 
     def connectUncachedPorts(self, in_ports, out_ports):
         for p in self._uncached_interrupt_response_ports:
-            exec("self.%s = out_ports" % p)
+            exec(f"self.{p} = out_ports")
         for p in self._uncached_interrupt_request_ports:
-            exec("self.%s = in_ports" % p)
+            exec(f"self.{p} = in_ports")
 
     def connectAllPorts(self, cached_in, uncached_in, uncached_out):
         self.connectCachedPorts(cached_in)
@@ -228,7 +230,7 @@ class BaseCPU(ClockedObject):
         else:
             if len(self.isa) != int(self.numThreads):
                 raise RuntimeError(
-                    "Number of ISA instances doesn't " "match thread count"
+                    "Number of ISA instances doesn't match thread count"
                 )
         if len(self.decoder) != 0:
             raise RuntimeError("Decoders should not be set up manually")
@@ -264,7 +266,7 @@ class BaseCPU(ClockedObject):
         # Generate cpu nodes
         for i in range(int(self.numThreads)):
             reg = (int(self.socket_id) << 8) + int(self.cpu_id) + i
-            node = FdtNode("cpu@%x" % reg)
+            node = FdtNode(f"cpu@{reg:x}")
             node.append(FdtPropertyStrings("device_type", "cpu"))
             node.appendCompatible(["gem5,arm-cpu"])
             node.append(FdtPropertyWords("reg", state.CPUAddrCells(reg)))
@@ -290,8 +292,7 @@ class BaseCPU(ClockedObject):
         # Generate nodes from the BaseCPU children (hence under the root node,
         # and don't add them as subnode). Please note: this is mainly needed
         # for the ISA class, to generate the PMU entry in the DTB.
-        for child_node in self.recurseDeviceTree(state):
-            yield child_node
+        yield from self.recurseDeviceTree(state)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

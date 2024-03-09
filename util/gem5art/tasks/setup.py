@@ -28,8 +28,11 @@
 
 from os.path import join
 from pathlib import Path
-from setuptools import setup, find_namespace_packages
 
+from setuptools import (
+    find_namespace_packages,
+    setup,
+)
 
 with open(Path(__file__).parent / "README.md", encoding="utf-8") as f:
     long_description = f.read()
@@ -58,7 +61,7 @@ setup(
     python_requires=">=3.6",
     project_urls={
         "Bug Reports": "https://gem5.atlassian.net/",
-        "Source": "https://gem5.googlesource.com/",
+        "Source": "https://github.com/gem5/gem5/",
         "Documentation": "https://www.gem5.org/documentation/gem5art",
     },
 )

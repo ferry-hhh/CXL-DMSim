@@ -25,9 +25,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
 from m5.proxy import *
-from m5.objects.ClockedObject import ClockedObject
 
 
 class GUPSGen(ClockedObject):
@@ -58,11 +58,11 @@ class GUPSGen(ClockedObject):
     )
 
     update_limit = Param.Int(
-        0, "The number of updates to issue before the" " simulation is over"
+        0, "The number of updates to issue before the simulation is over"
     )
 
     request_queue_size = Param.Int(
-        1024, "Maximum number of parallel" " outstanding requests"
+        1024, "Maximum number of parallel outstanding requests"
     )
 
     init_memory = Param.Bool(

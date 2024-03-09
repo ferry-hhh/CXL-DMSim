@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 ARM Limited
+ * Copyright (c) 2013-2014, 2023 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -55,7 +55,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -84,18 +83,26 @@ Base::PrefetchInfo::PrefetchInfo(PrefetchInfo const &pfi, Addr addr)
 }
 
 void
-Base::PrefetchListener::notify(const PacketPtr &pkt)
+Base::PrefetchListener::notify(const CacheAccessProbeArg &arg)
 {
     if (isFill) {
-        parent.notifyFill(pkt);
+        parent.notifyFill(arg);
     } else {
-        parent.probeNotify(pkt, miss);
+        parent.probeNotify(arg, miss);
     }
 }
 
+void
+Base::PrefetchEvictListener::notify(const EvictionInfo &info)
+{
+    if (info.newData.empty())
+        parent.notifyEvict(info);
+}
+
 Base::Base(const BasePrefetcherParams &p)
-    : ClockedObject(p), listeners(), cache(nullptr), blkSize(p.block_size),
-      lBlkSize(floorLog2(blkSize)), onMiss(p.on_miss), onRead(p.on_read),
+    : ClockedObject(p), listeners(), system(nullptr), probeManager(nullptr),
+      blkSize(p.block_size), lBlkSize(floorLog2(blkSize)),
+      onMiss(p.on_miss), onRead(p.on_read),
       onWrite(p.on_write), onData(p.on_data), onInst(p.on_inst),
       requestorId(p.sys->getRequestorId(this)),
       pageBytes(p.page_bytes),
@@ -103,18 +110,18 @@ Base::Base(const BasePrefetcherParams &p)
       prefetchOnPfHit(p.prefetch_on_pf_hit),
       useVirtualAddresses(p.use_virtual_addresses),
       prefetchStats(this), issuedPrefetches(0),
-      usefulPrefetches(0), tlb(nullptr)
+      usefulPrefetches(0), mmu(nullptr)
 {
 }
 
 void
-Base::setCache(BaseCache *_cache)
+Base::setParentInfo(System *sys, ProbeManager *pm, unsigned blk_size)
 {
-    assert(!cache);
-    cache = _cache;
-
+    assert(!system && !probeManager);
+    system = sys;
+    probeManager = pm;
     // If the cache has a different block size from the system's, save it
-    blkSize = cache->getBlockSize();
+    blkSize = blk_size;
     lBlkSize = floorLog2(blkSize);
 }
 
@@ -158,7 +165,7 @@ Base::StatGroup::StatGroup(statistics::Group *parent)
 }
 
 bool
-Base::observeAccess(const PacketPtr &pkt, bool miss) const
+Base::observeAccess(const PacketPtr &pkt, bool miss, bool prefetched) const
 {
     bool fetch = pkt->req->isInstFetch();
     bool read = pkt->isRead();
@@ -166,7 +173,7 @@ Base::observeAccess(const PacketPtr &pkt, bool miss) const
 
     if (!miss) {
         if (prefetchOnPfHit)
-            return hasBeenPrefetched(pkt->getAddr(), pkt->isSecure());
+            return prefetched;
         if (!prefetchOnAccess)
             return false;
     }
@@ -183,24 +190,6 @@ Base::observeAccess(const PacketPtr &pkt, bool miss) const
     }
 
     return true;
-}
-
-bool
-Base::inCache(Addr addr, bool is_secure) const
-{
-    return cache->inCache(addr, is_secure);
-}
-
-bool
-Base::inMissQueue(Addr addr, bool is_secure) const
-{
-    return cache->inMissQueue(addr, is_secure);
-}
-
-bool
-Base::hasBeenPrefetched(Addr addr, bool is_secure) const
-{
-    return cache->hasBeenPrefetched(addr, is_secure);
 }
 
 bool
@@ -240,18 +229,24 @@ Base::pageIthBlockAddress(Addr page, uint32_t blockIndex) const
 }
 
 void
-Base::probeNotify(const PacketPtr &pkt, bool miss)
+Base::probeNotify(const CacheAccessProbeArg &acc, bool miss)
 {
+    const PacketPtr pkt = acc.pkt;
+    const CacheAccessor &cache = acc.cache;
+
     // Don't notify prefetcher on SWPrefetch, cache maintenance
     // operations or for writes that we are coaslescing.
     if (pkt->cmd.isSWPrefetch()) return;
     if (pkt->req->isCacheMaintenance()) return;
-    if (pkt->isWrite() && cache != nullptr && cache->coalesce()) return;
+    if (pkt->isWrite() && cache.coalesce()) return;
     if (!pkt->req->hasPaddr()) {
         panic("Request must have a physical address");
     }
 
-    if (hasBeenPrefetched(pkt->getAddr(), pkt->isSecure())) {
+    bool has_been_prefetched =
+        acc.cache.hasBeenPrefetched(pkt->getAddr(), pkt->isSecure(),
+                                    requestorId);
+    if (has_been_prefetched) {
         usefulPrefetches += 1;
         prefetchStats.pfUseful++;
         if (miss)
@@ -261,13 +256,13 @@ Base::probeNotify(const PacketPtr &pkt, bool miss)
     }
 
     // Verify this access type is observed by prefetcher
-    if (observeAccess(pkt, miss)) {
+    if (observeAccess(pkt, miss, has_been_prefetched)) {
         if (useVirtualAddresses && pkt->req->hasVaddr()) {
             PrefetchInfo pfi(pkt, pkt->req->getVaddr(), miss);
-            notify(pkt, pfi);
+            notify(acc, pfi);
         } else if (!useVirtualAddresses) {
             PrefetchInfo pfi(pkt, pkt->req->getPaddr(), miss);
-            notify(pkt, pfi);
+            notify(acc, pfi);
         }
     }
 }
@@ -280,14 +275,15 @@ Base::regProbeListeners()
      * parent cache using the probe "Miss". Also connect to "Hit", if the
      * cache is configured to prefetch on accesses.
      */
-    if (listeners.empty() && cache != nullptr) {
-        ProbeManager *pm(cache->getProbeManager());
-        listeners.push_back(new PrefetchListener(*this, pm, "Miss", false,
-                                                true));
-        listeners.push_back(new PrefetchListener(*this, pm, "Fill", true,
-                                                 false));
-        listeners.push_back(new PrefetchListener(*this, pm, "Hit", false,
-                                                 false));
+    if (listeners.empty() && probeManager != nullptr) {
+        listeners.push_back(new PrefetchListener(*this, probeManager,
+                                                "Miss", false, true));
+        listeners.push_back(new PrefetchListener(*this, probeManager,
+                                                 "Fill", true, false));
+        listeners.push_back(new PrefetchListener(*this, probeManager,
+                                                 "Hit", false, false));
+        listeners.push_back(new PrefetchEvictListener(*this, probeManager,
+                                                 "Data Update"));
     }
 }
 
@@ -299,10 +295,10 @@ Base::addEventProbe(SimObject *obj, const char *name)
 }
 
 void
-Base::addTLB(BaseTLB *t)
+Base::addMMU(BaseMMU *m)
 {
-    fatal_if(tlb != nullptr, "Only one TLB can be registered");
-    tlb = t;
+    fatal_if(mmu != nullptr, "Only one MMU can be registered");
+    mmu = m;
 }
 
 } // namespace prefetch

@@ -1,4 +1,4 @@
-# Copyright (c) 2021 The Regents of the University of California
+# Copyright (c) 2021-2023 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,9 +28,11 @@
 This runs simple tests to ensure the examples in `configs/example/gem5_library`
 still function. They simply check the simulation completed.
 """
-from testlib import *
-import re
 import os
+import re
+
+from testlib import *
+from testlib.log import *
 
 if config.bin_path:
     resource_path = config.bin_path
@@ -171,7 +173,14 @@ gem5_verify_config(
     length=constants.long_tag,
 )
 
-if os.access("/dev/kvm", mode=os.R_OK | os.W_OK):
+log.test_log.message(
+    "PARSEC tests are disabled. This is due to our GitHub "
+    "Actions self-hosted runners only having 60GB of disk space. The "
+    "PARSEC Disk image is too big to use.",
+    level=LogLevel.Warn,
+)
+# 'False' is used to disable the tests.
+if False:  # os.access("/dev/kvm", mode=os.R_OK | os.W_OK):
     # The x86-parsec-benchmarks uses KVM cores, this test will therefore only
     # be run on systems that support KVM.
     gem5_verify_config(
@@ -209,10 +218,7 @@ if os.access("/dev/kvm", mode=os.R_OK | os.W_OK):
         ),
         config_args=[
             "--benchmark",
-            "bt",
-            "--size",
-            "A",
-            "--ticks",
+            "npb-bt-a" "--ticks",
             "5000000000",
         ],
         valid_isas=(constants.all_compiled_tag,),
@@ -236,7 +242,7 @@ if os.access("/dev/kvm", mode=os.R_OK | os.W_OK):
             "gem5_library",
             "x86-gapbs-benchmarks.py",
         ),
-        config_args=["--benchmark", "bfs", "--synthetic", "1", "--size", "1"],
+        config_args=["--benchmark", "gapbs-bfs-test"],
         valid_isas=(constants.all_compiled_tag,),
         protocol="MESI_Two_Level",
         valid_hosts=(constants.host_x86_64_tag,),
@@ -324,3 +330,77 @@ gem5_verify_config(
     valid_hosts=constants.supported_hosts,
     length=constants.very_long_tag,
 )
+
+gem5_verify_config(
+    name="test-gem5-library-example-riscvmatched-microbenchmark-suite",
+    fixtures=(),
+    verifiers=(),
+    config=joinpath(
+        config.base_dir,
+        "configs",
+        "example",
+        "gem5_library",
+        "riscvmatched-microbenchmark-suite.py",
+    ),
+    config_args=[],
+    valid_isas=(constants.all_compiled_tag,),
+    valid_hosts=constants.supported_hosts,
+    length=constants.long_tag,
+)
+
+# The LoopPoint-Checkpointing feature is still under development, therefore
+# these tests are temporarily disabled until this feature is complete.#
+
+# gem5_verify_config(
+#    name="test-gem5-library-create-looppoint-checkpoints",
+#    fixtures=(),
+#    verifiers=(),
+#    config=joinpath(
+#        config.base_dir,
+#        "configs",
+#        "example",
+#        "gem5_library",
+#        "looppoints",
+#        "create-looppoint-checkpoint.py",
+#    ),
+#    config_args=[
+#        "--checkpoint-path",
+#        joinpath(resource_path, "looppoint-checkpoint-save"),
+#    ],
+#    valid_isas=(constants.all_compiled_tag,),
+#    valid_hosts=constants.supported_hosts,
+#    length=constants.very_long_tag,
+# )
+
+# for region in (
+#    "1",
+#    "2",
+#    "3",
+#    "5",
+#    "6",
+#    "7",
+#    "8",
+#    "9",
+#    "10",
+#    "11",
+#    "12",
+#    "13",
+#    "14",
+# ):
+#    gem5_verify_config(
+#        name=f"test-gem5-library-restore-looppoint-checkpoint-region-f{region}",
+#        fixtures=(),
+#        verifiers=(),
+#        config=joinpath(
+#            config.base_dir,
+#            "configs",
+#            "example",
+#            "gem5_library",
+#            "looppoints",
+#            "restore-looppoint-checkpoint.py",
+#        ),
+#        config_args=["--checkpoint-region", region],
+#        valid_isas=(constants.all_compiled_tag,),
+#        valid_hosts=constants.supported_hosts,
+#        length=constants.very_long_tag,
+#    )

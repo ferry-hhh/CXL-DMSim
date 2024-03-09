@@ -23,11 +23,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects.SystemC import SystemC_ScModule
+from m5.objects.Tlm import (
+    TlmInitiatorSocket,
+    TlmTargetSocket,
+)
 from m5.params import *
 from m5.proxy import *
-
-from m5.objects.SystemC import SystemC_ScModule
-from m5.objects.Tlm import TlmInitiatorSocket, TlmTargetSocket
 
 
 def AMBA_TARGET_ROLE(width):
@@ -39,11 +41,11 @@ def AMBA_INITIATOR_ROLE(width):
 
 
 def SC_REQUEST_PORT_ROLE(port_type):
-    return "SC REQUEST PORT for %s" % port_type
+    return f"SC REQUEST PORT for {port_type}"
 
 
 def SC_RESPONSE_PORT_ROLE(port_type):
-    return "SC RESPONSE PORT for %s" % port_type
+    return f"SC RESPONSE PORT for {port_type}"
 
 
 class AmbaTargetSocket(Port):
@@ -107,6 +109,10 @@ class AmbaToTlmBridge64(SystemC_ScModule):
 
     amba = AmbaTargetSocket(64, "AMBA PV target socket")
     tlm = TlmInitiatorSocket(64, "TLM initiator socket")
+
+    set_stream_id = Param.Bool(
+        False, "Set this true to forward stream ID to gem5 world"
+    )
 
 
 class AmbaFromTlmBridge64(SystemC_ScModule):

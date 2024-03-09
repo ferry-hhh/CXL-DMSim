@@ -31211,6 +31211,8 @@ namespace VegaISA
             }
         } // getOperandSize
 
+        void initiateAcc(GPUDynInstPtr gpuDynInst) override;
+        void completeAcc(GPUDynInstPtr gpuDynInst) override;
         void execute(GPUDynInstPtr) override;
     }; // Inst_DS__DS_ADD_U32
 
@@ -31532,8 +31534,8 @@ namespace VegaISA
         } // getOperandSize
 
         void execute(GPUDynInstPtr) override;
-        void initiateAcc(GPUDynInstPtr gpuDynInst);
-        void completeAcc(GPUDynInstPtr gpuDynInst);
+        void initiateAcc(GPUDynInstPtr gpuDynInst) override;
+        void completeAcc(GPUDynInstPtr gpuDynInst) override;
     }; // Inst_DS__DS_OR_B32
 
     class Inst_DS__DS_XOR_B32 : public Inst_DS
@@ -31893,6 +31895,8 @@ namespace VegaISA
             }
         } // getOperandSize
 
+        void initiateAcc(GPUDynInstPtr gpuDynInst) override;
+        void completeAcc(GPUDynInstPtr gpuDynInst) override;
         void execute(GPUDynInstPtr) override;
     }; // Inst_DS__DS_ADD_F32
 
@@ -31929,6 +31933,40 @@ namespace VegaISA
         void initiateAcc(GPUDynInstPtr) override;
         void completeAcc(GPUDynInstPtr) override;
     }; // Inst_DS__DS_WRITE_B8
+
+    class Inst_DS__DS_WRITE_B8_D16_HI : public Inst_DS
+    {
+      public:
+        Inst_DS__DS_WRITE_B8_D16_HI(InFmt_DS*);
+        ~Inst_DS__DS_WRITE_B8_D16_HI();
+
+        int
+        getNumOperands() override
+        {
+            return numDstRegOperands() + numSrcRegOperands();
+        } // getNumOperands
+
+        int numDstRegOperands() override { return 0; }
+        int numSrcRegOperands() override { return 2; }
+
+        int
+        getOperandSize(int opIdx) override
+        {
+            switch (opIdx) {
+              case 0: //vgpr_a
+                return 4;
+              case 1: //vgpr_d0
+                return 1;
+              default:
+                fatal("op idx %i out of bounds\n", opIdx);
+                return -1;
+            }
+        } // getOperandSize
+
+        void execute(GPUDynInstPtr) override;
+        void initiateAcc(GPUDynInstPtr) override;
+        void completeAcc(GPUDynInstPtr) override;
+    }; // Inst_DS__DS_WRITE_B8_D16_HI
 
     class Inst_DS__DS_WRITE_B16 : public Inst_DS
     {
@@ -32844,6 +32882,8 @@ namespace VegaISA
         } // getOperandSize
 
         void execute(GPUDynInstPtr) override;
+        void initiateAcc(GPUDynInstPtr) override;
+        void completeAcc(GPUDynInstPtr) override;
     }; // Inst_DS__DS_READ_I8
 
     class Inst_DS__DS_READ_U8 : public Inst_DS
@@ -33075,6 +33115,8 @@ namespace VegaISA
             }
         } // getOperandSize
 
+        void initiateAcc(GPUDynInstPtr gpuDynInst) override;
+        void completeAcc(GPUDynInstPtr gpuDynInst) override;
         void execute(GPUDynInstPtr) override;
     }; // Inst_DS__DS_ADD_U64
 
@@ -33553,7 +33595,9 @@ namespace VegaISA
             switch (opIdx) {
               case 0: //vgpr_a
                 return 4;
-              case 1: //vgpr_d1
+              case 1: //vgpr_d0
+                return 8;
+              case 2: //vgpr_d1
                 return 8;
               default:
                 fatal("op idx %i out of bounds\n", opIdx);
@@ -33562,6 +33606,8 @@ namespace VegaISA
         } // getOperandSize
 
         void execute(GPUDynInstPtr) override;
+        void initiateAcc(GPUDynInstPtr) override;
+        void completeAcc(GPUDynInstPtr) override;
     }; // Inst_DS__DS_WRITE2ST64_B64
 
     class Inst_DS__DS_CMPST_B64 : public Inst_DS
@@ -37174,6 +37220,8 @@ namespace VegaISA
         } // getOperandSize
 
         void execute(GPUDynInstPtr) override;
+        void initiateAcc(GPUDynInstPtr) override;
+        void completeAcc(GPUDynInstPtr) override;
     }; // Inst_MUBUF__BUFFER_ATOMIC_CMPSWAP
 
     class Inst_MUBUF__BUFFER_ATOMIC_ADD : public Inst_MUBUF
@@ -41882,7 +41930,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_dst or saddr
                 return isFlat() ? 1 : 8;
               case 2: //vgpr_dst
@@ -41919,7 +41967,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_dst or saddr
                 return isFlat() ? 1 : 8;
               case 2: //vgpr_dst
@@ -41956,7 +42004,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_dst or saddr
                 return isFlat() ? 2 : 8;
               case 2: //vgpr_dst
@@ -41993,7 +42041,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_dst or saddr
                 return isFlat() ? 2 : 8;
               case 2: //vgpr_dst
@@ -42030,7 +42078,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_dst or saddr
                 return isFlat() ? 4 : 8;
               case 2: //vgpr_dst
@@ -42067,7 +42115,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_dst or saddr
                 return isFlat() ? 8 : 8;
               case 2: //vgpr_dst
@@ -42104,7 +42152,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_dst or saddr
                 return isFlat() ? 12 : 8;
               case 2: //vgpr_dst
@@ -42141,7 +42189,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_dst or saddr
                 return isFlat() ? 16 : 8;
               case 2: //vgpr_dst
@@ -42178,7 +42226,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 1;
               case 2: //saddr
@@ -42215,7 +42263,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 2;
               case 2: //saddr
@@ -42252,7 +42300,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //saddr
@@ -42289,7 +42337,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //saddr
@@ -42326,7 +42374,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 12;
               case 2: //saddr
@@ -42363,7 +42411,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 16;
               case 2: //saddr
@@ -42400,7 +42448,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42439,7 +42487,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -42478,7 +42526,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42517,7 +42565,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42554,7 +42602,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42569,6 +42617,8 @@ namespace VegaISA
         } // getOperandSize
 
         void execute(GPUDynInstPtr) override;
+        void initiateAcc(GPUDynInstPtr) override;
+        void completeAcc(GPUDynInstPtr) override;
     }; // Inst_FLAT__FLAT_ATOMIC_SMIN
 
     class Inst_FLAT__FLAT_ATOMIC_UMIN : public Inst_FLAT
@@ -42591,7 +42641,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42628,7 +42678,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42643,6 +42693,8 @@ namespace VegaISA
         } // getOperandSize
 
         void execute(GPUDynInstPtr) override;
+        void initiateAcc(GPUDynInstPtr) override;
+        void completeAcc(GPUDynInstPtr) override;
     }; // Inst_FLAT__FLAT_ATOMIC_SMAX
 
     class Inst_FLAT__FLAT_ATOMIC_UMAX : public Inst_FLAT
@@ -42665,7 +42717,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42702,7 +42754,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42739,7 +42791,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42754,6 +42806,8 @@ namespace VegaISA
         } // getOperandSize
 
         void execute(GPUDynInstPtr) override;
+        void initiateAcc(GPUDynInstPtr) override;
+        void completeAcc(GPUDynInstPtr) override;
     }; // Inst_FLAT__FLAT_ATOMIC_OR
 
     class Inst_FLAT__FLAT_ATOMIC_XOR : public Inst_FLAT
@@ -42776,7 +42830,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42813,7 +42867,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42850,7 +42904,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 4;
               case 2: //vgpr_dst or saddr
@@ -42887,7 +42941,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -42924,7 +42978,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 16;
               case 2: //vgpr_dst or saddr
@@ -42963,7 +43017,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43002,7 +43056,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43039,7 +43093,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43076,7 +43130,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43113,7 +43167,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43150,7 +43204,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43187,7 +43241,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43224,7 +43278,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43261,7 +43315,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43298,7 +43352,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr
@@ -43335,7 +43389,7 @@ namespace VegaISA
         {
             switch (opIdx) {
               case 0: //vgpr_addr
-                return 8;
+                return vgprIsOffset() ? 4 : 8;
               case 1: //vgpr_src
                 return 8;
               case 2: //vgpr_dst or saddr

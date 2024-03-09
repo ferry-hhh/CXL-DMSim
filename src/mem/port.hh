@@ -46,6 +46,11 @@
 #ifndef __MEM_PORT_HH__
 #define __MEM_PORT_HH__
 
+#include <memory>
+#include <sstream>
+#include <stack>
+#include <string>
+
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/protocol/atomic.hh"
@@ -63,6 +68,58 @@ class MasterPort;
 class SlavePort;
 
 class ResponsePort;
+
+/**
+ * TracingExtension is an Extension of the Packet for recording the trace
+ * of the Packet. The stack in the TracingExtension holds the name of the
+ * ports that the Packet has passed through.
+ */
+class TracingExtension : public gem5::Extension<Packet, TracingExtension>
+{
+ public:
+   TracingExtension() = default;
+   TracingExtension(const std::stack<std::string>& q) { trace_ = q; }
+
+   std::unique_ptr<ExtensionBase> clone() const override
+   {
+       return std::make_unique<TracingExtension>(trace_);
+   }
+
+   void
+   add(std::string request_port, std::string response_port, gem5::Addr addr)
+   {
+       trace_.push(request_port + csprintf(" addr=%#llx", addr));
+       trace_.push(response_port);
+   }
+
+   void
+   remove()
+   {
+       trace_.pop();  // Remove the response port name.
+       trace_.pop();  // Remove the request port name.
+   }
+
+   bool empty() { return trace_.empty(); }
+   std::stack<std::string>& getTrace() { return trace_; }
+   std::string getTraceInString()
+   {
+       std::stringstream port_trace;
+       std::stack<std::string> copy_stack = trace_;
+       port_trace << "Port trace of the Packet (" << std::endl
+                  << "[Destination] ";
+       while (!copy_stack.empty()) {
+           if (copy_stack.size() == 1)
+               port_trace << "[Source] ";
+           port_trace << copy_stack.top() << std::endl;
+           copy_stack.pop();
+       }
+       port_trace << ")";
+       return port_trace.str();
+   }
+
+  private:
+   std::stack<std::string> trace_;
+};
 
 /**
  * A RequestPort is a specialisation of a Port, which
@@ -86,8 +143,13 @@ class RequestPort: public Port, public AtomicRequestProtocol,
     SimObject &owner;
 
   public:
+    [[deprecated("RequestPort ownership is deprecated. "
+                 "Owner should now be registered in derived classes.")]]
     RequestPort(const std::string& name, SimObject* _owner,
-               PortID id=InvalidPortID);
+                PortID id=InvalidPortID);
+
+    RequestPort(const std::string& name, PortID id=InvalidPortID);
+
     virtual ~RequestPort();
 
     /**
@@ -160,6 +222,21 @@ class RequestPort: public Port, public AtomicRequestProtocol,
      * @param pkt Packet to send.
      */
     void sendFunctional(PacketPtr pkt) const;
+
+    /**
+     * Send a request for a back door to a range of memory.
+     *
+     * @param req An object which describes what back door is being requested.
+     * @param backdoor Can be set to a back door pointer by the target to let
+     *        caller have direct access to the requested range. The original
+     *        caller should initialize this pointer to nullptr. If a receiver
+     *        does not want to provide a back door, they should leave this
+     *        value. If an intermediary wants to support a back door across it,
+     *        it should pass this pointer through, or if not, return without
+     *        passing the request further downstream.
+     */
+    void sendMemBackdoorReq(const MemBackdoorReq &req,
+            MemBackdoorPtr &backdoor);
 
   public:
     /* The timing protocol. */
@@ -246,14 +323,16 @@ class RequestPort: public Port, public AtomicRequestProtocol,
     {
         panic("%s was not expecting a snoop retry.\n", name());
     }
+
+  private:
+    void addTrace(PacketPtr pkt) const;
+    void removeTrace(PacketPtr pkt) const;
 };
 
 class [[deprecated]] MasterPort : public RequestPort
 {
   public:
-    MasterPort(const std::string& name, SimObject* _owner,
-               PortID id=InvalidPortID) : RequestPort(name, _owner, id)
-               {}
+    using RequestPort::RequestPort;
 };
 
 /**
@@ -279,8 +358,13 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
     SimObject& owner;
 
   public:
+    [[deprecated("ResponsePort ownership is deprecated. "
+                 "Owner should now be registered in derived classes.")]]
     ResponsePort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
+                 PortID id=InvalidPortID);
+
+    ResponsePort(const std::string& name, PortID id=InvalidPortID);
+
     virtual ~ResponsePort();
 
     /**
@@ -370,7 +454,11 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
     sendTimingResp(PacketPtr pkt)
     {
         try {
-            return TimingResponseProtocol::sendResp(_requestPort, pkt);
+            _requestPort->removeTrace(pkt);
+            bool succ = TimingResponseProtocol::sendResp(_requestPort, pkt);
+            if (!succ)
+                _requestPort->addTrace(pkt);
+            return succ;
         } catch (UnboundPortException) {
             reportUnbound();
         }
@@ -438,6 +526,8 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      * Default implementations.
      */
     Tick recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor) override;
+    void recvMemBackdoorReq(const MemBackdoorReq &req,
+            MemBackdoorPtr &backdoor) override;
 
     bool
     tryTiming(PacketPtr pkt) override
@@ -455,16 +545,17 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
 class [[deprecated]] SlavePort : public ResponsePort
 {
   public:
-    SlavePort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID) : ResponsePort(name, _owner, id)
-              {}
+    using ResponsePort::ResponsePort;
 };
 
 inline Tick
 RequestPort::sendAtomic(PacketPtr pkt)
 {
     try {
-        return AtomicRequestProtocol::send(_responsePort, pkt);
+        addTrace(pkt);
+        Tick tick = AtomicRequestProtocol::send(_responsePort, pkt);
+        removeTrace(pkt);
+        return tick;
     } catch (UnboundPortException) {
         reportUnbound();
     }
@@ -474,8 +565,11 @@ inline Tick
 RequestPort::sendAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor)
 {
     try {
-        return AtomicRequestProtocol::sendBackdoor(_responsePort,
-                                                    pkt, backdoor);
+        addTrace(pkt);
+        Tick tick = AtomicRequestProtocol::sendBackdoor(_responsePort,
+                                                        pkt, backdoor);
+        removeTrace(pkt);
+        return tick;
     } catch (UnboundPortException) {
         reportUnbound();
     }
@@ -485,7 +579,21 @@ inline void
 RequestPort::sendFunctional(PacketPtr pkt) const
 {
     try {
-        return FunctionalRequestProtocol::send(_responsePort, pkt);
+        addTrace(pkt);
+        FunctionalRequestProtocol::send(_responsePort, pkt);
+        removeTrace(pkt);
+    } catch (UnboundPortException) {
+        reportUnbound();
+    }
+}
+
+inline void
+RequestPort::sendMemBackdoorReq(const MemBackdoorReq &req,
+        MemBackdoorPtr &backdoor)
+{
+    try {
+        return FunctionalRequestProtocol::sendMemBackdoorReq(
+                _responsePort, req, backdoor);
     } catch (UnboundPortException) {
         reportUnbound();
     }
@@ -495,7 +603,11 @@ inline bool
 RequestPort::sendTimingReq(PacketPtr pkt)
 {
     try {
-        return TimingRequestProtocol::sendReq(_responsePort, pkt);
+        addTrace(pkt);
+        bool succ = TimingRequestProtocol::sendReq(_responsePort, pkt);
+        if (!succ)
+            removeTrace(pkt);
+        return succ;
     } catch (UnboundPortException) {
         reportUnbound();
     }

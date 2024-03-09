@@ -84,7 +84,8 @@ setupAltStack()
 
 static void
 installSignalHandler(int signal, void (*handler)(int sigtype),
-                     int flags = SA_RESTART)
+                     int flags = SA_RESTART,
+                     struct sigaction *old_sa = NULL)
 {
     struct sigaction sa;
 
@@ -93,7 +94,7 @@ installSignalHandler(int signal, void (*handler)(int sigtype),
     sa.sa_handler = handler;
     sa.sa_flags = flags;
 
-    if (sigaction(signal, &sa, NULL) == -1)
+    if (sigaction(signal, &sa, old_sa) == -1)
         panic("Failed to setup handler for signal %i\n", signal);
 }
 
@@ -103,6 +104,8 @@ raiseFatalSignal(int signo)
     // The signal handler should have been reset and unmasked (it was
     // registered with SA_RESETHAND | SA_NODEFER), just raise the
     // signal again to invoke the default handler.
+    STATIC_ERR("For more info on how to address this issue, please visit "
+        "https://www.gem5.org/documentation/general_docs/common-errors/ \n\n");
     pthread_kill(pthread_self(), signo);
 
     // Something is really wrong if the process is alive at this
@@ -194,9 +197,6 @@ initSignals()
     // Dump intermediate stats and reset them
     installSignalHandler(SIGUSR2, dumprstStatsHandler);
 
-    // Exit cleanly on Interrupt (Ctrl-C)
-    installSignalHandler(SIGINT, exitNowHandler);
-
     // Print the current cycle number and a backtrace on abort. Make
     // sure the signal is unmasked and the handler reset when a signal
     // is delivered to be able to invoke the default handler.
@@ -215,5 +215,20 @@ initSignals()
     // PollQueue class.
     installSignalHandler(SIGIO, ioHandler);
 }
+
+struct sigaction old_int_sa;
+
+void initSigInt()
+{
+    // Exit cleanly on Interrupt (Ctrl-C)
+    installSignalHandler(SIGINT, exitNowHandler, SA_RESTART, &old_int_sa);
+}
+
+void restoreSigInt()
+{
+    // Restore the old SIGINT handler
+    sigaction(SIGINT, &old_int_sa, NULL);
+}
+
 
 } // namespace gem5

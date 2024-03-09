@@ -52,8 +52,7 @@ from gem5.isas import ISA
 from gem5.coherence_protocol import CoherenceProtocol
 from gem5.simulate.simulator import Simulator
 from gem5.simulate.exit_event import ExitEvent
-from gem5.resources.workload import Workload
-from gem5.resources.resource import CustomDiskImageResource, CustomKernelResource
+from gem5.resources.resource import DiskImageResource, KernelResource
 
 # This runs a check to ensure the gem5 binary is compiled to X86 and to the
 # MESI Two Level coherence protocol.
@@ -72,7 +71,7 @@ cache_hierarchy = PrivateL1SharedL2CacheHierarchy(
     l1d_assoc=8,
     l1i_size="512kB",
     l1i_assoc=8,
-    l2_size="8192kB",
+    l2_size="4096kB",
     l2_assoc=16,
 )
 
@@ -111,14 +110,16 @@ board = X86Board(
 # has ended you may inspect `m5out/system.pc.com_1.device` to see the echo
 # output.
 command = (
-    "m5 switchcpu;"
+    # "m5 exit;"
+    "cd ../home/cxl_benchmark;"
     + "echo 'This is running on Timing CPU cores.';"
+    # + "./benchmark.sh;"
 )
 
 board.set_kernel_disk_workload(
-    # kernel=CustomKernelResource(local_path='/home/wyj/code/fs_image/vmlinux-5.4.49'),
-    kernel=CustomKernelResource(local_path='/home/wyj/code/fs_image/vmlinux_numa'),
-    disk_image=CustomDiskImageResource(local_path='/home/wyj/code/fs_image/parsec.img'),
+    # kernel=KernelResource(local_path='/home/wyj/code/fs_image/vmlinux-5.4.49'),
+    kernel=KernelResource(local_path='/home/wyj/code/fs_image/vmlinux_numa'),
+    disk_image=DiskImageResource(local_path='/home/wyj/code/fs_image/parsec.img'),
     readfile_contents=command,
 )
 

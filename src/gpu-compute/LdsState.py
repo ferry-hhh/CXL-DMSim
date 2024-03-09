@@ -28,10 +28,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from m5.defines import buildEnv
+from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
 from m5.proxy import *
-
-from m5.objects.ClockedObject import ClockedObject
 
 
 class LdsState(ClockedObject):
@@ -41,7 +40,7 @@ class LdsState(ClockedObject):
     size = Param.Int(65536, "the size of the LDS")
     range = Param.AddrRange("64kB", "address space of the LDS")
     bankConflictPenalty = Param.Int(
-        1, "penalty per LDS bank conflict when " "accessing data"
+        1, "penalty per LDS bank conflict when accessing data"
     )
     banks = Param.Int(32, "Number of LDS banks")
     cuPort = ResponsePort("port that goes to the compute unit")

@@ -69,7 +69,7 @@ def upgrader(cpt):
     }
 
     for sec in cpt.sections():
-        if re.search(".*\.hdlcd$", sec):
+        if re.search(r".*\.hdlcd$", sec):
             options = {}
             for new, old in list(option_names.items()):
                 options[new] = cpt.get(sec, old)
@@ -82,7 +82,7 @@ def upgrader(cpt):
             # Create a DMA engine section. The LCD controller will
             # initialize the DMA it after the next VSync, so we don't
             # care about the actual values
-            sec_dma = "%s.dmaEngine" % sec
+            sec_dma = f"{sec}.dmaEngine"
             cpt.add_section(sec_dma)
             cpt.set(sec_dma, "nextLineAddr", "0")
             cpt.set(sec_dma, "frameEnd", "0")

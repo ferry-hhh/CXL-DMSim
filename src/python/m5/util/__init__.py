@@ -40,13 +40,16 @@
 import os
 import re
 import sys
-
 from functools import wraps
 
 from . import convert
-
-from .attrdict import attrdict, multiattrdict, optiondict
+from .attrdict import (
+    attrdict,
+    multiattrdict,
+    optiondict,
+)
 from .multidict import multidict
+
 
 # panic() should be called when something happens that should never
 # ever happen regardless of what the user does (i.e., an acutal m5
@@ -108,8 +111,12 @@ def deprecated(replacement=None, logger=warn):
                     message += f" Prefer {replacement} instead."
             logger(message)
 
-        notifyDeprecation()
-        return func
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            notifyDeprecation()
+            return func(*args, **kwargs)
+
+        return wrapper
 
     return decorator
 
@@ -199,7 +206,7 @@ def printList(items, indent=4):
             line = " " * indent
 
         if i < len(items) - 1:
-            line += "%s, " % item
+            line += f"{item}, "
         else:
             line += item
             print(line)

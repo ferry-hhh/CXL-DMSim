@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects.MemCtrl import *
 from m5.params import *
 from m5.proxy import *
-from m5.objects.MemCtrl import *
 
 # HBMCtrl manages two pseudo channels of HBM2
 
@@ -46,5 +46,3 @@ class HBMCtrl(MemCtrl):
     # gives the best results with following min_r/w_per_switch
     min_reads_per_switch = 64
     min_writes_per_switch = 64
-
-    partitioned_q = Param.Bool(False, "split queues for pseudo channels")

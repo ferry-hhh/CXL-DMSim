@@ -85,6 +85,12 @@ class Decoder : public InstDecoder
      */
     int sveLen;
 
+    /**
+     * SME vector length, encoded in the same format as the SMCR_EL<x>.LEN
+     * bitfields.
+     */
+    int smeLen;
+
     enums::DecoderFlavor decoderFlavor;
 
     /// A cache of decoded instruction objects.
@@ -132,6 +138,7 @@ class Decoder : public InstDecoder
         StaticInstPtr si = defaultCache.decode(this, mach_inst, addr);
         DPRINTF(Decode, "Decode: Decoded %s instruction: %#x\n",
                 si->getName(), mach_inst);
+        si->size((!emi.thumb || emi.bigThumb) ? 4 : 2);
         return si;
     }
 
@@ -157,6 +164,12 @@ class Decoder : public InstDecoder
     setSveLen(uint8_t len)
     {
         sveLen = len;
+    }
+
+    void
+    setSmeLen(uint8_t len)
+    {
+        smeLen = len;
     }
 };
 

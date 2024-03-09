@@ -25,15 +25,17 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
-import sys
 import re
+import sys
 import traceback
 
 # get type names
 from types import *
 
-from ply import lex
-from ply import yacc
+from ply import (
+    lex,
+    yacc,
+)
 
 ##########################################################################
 #
@@ -56,9 +58,9 @@ class MicroContainer:
         self.microops.append(microop)
 
     def __str__(self):
-        string = "%s:\n" % self.name
+        string = f"{self.name}:\n"
         for microop in self.microops:
-            string += "  %s\n" % microop
+            string += f"  {microop}\n"
         return string
 
 
@@ -72,7 +74,7 @@ class RomMacroop:
         self.target = target
 
     def __str__(self):
-        return "%s: %s\n" % (self.name, self.target)
+        return f"{self.name}: {self.target}\n"
 
 
 class Rom(MicroContainer):
@@ -88,18 +90,18 @@ class Rom(MicroContainer):
 ##########################################################################
 
 
-class Label(object):
+class Label:
     def __init__(self):
         self.extern = False
         self.name = ""
 
 
-class Block(object):
+class Block:
     def __init__(self):
         self.statements = []
 
 
-class Statement(object):
+class Statement:
     def __init__(self):
         self.is_microop = False
         self.is_directive = False
@@ -130,29 +132,26 @@ class Directive(Statement):
 
 def print_error(message):
     print()
-    print("*** %s" % message)
+    print(f"*** {message}")
     print()
 
 
 def handle_statement(parser, container, statement):
     if statement.is_microop:
         if statement.mnemonic not in parser.microops.keys():
-            raise Exception(
-                "Unrecognized mnemonic: {}".format(statement.mnemonic)
-            )
+            raise Exception(f"Unrecognized mnemonic: {statement.mnemonic}")
         parser.symbols[
             "__microopClassFromInsideTheAssembler"
         ] = parser.microops[statement.mnemonic]
         try:
             microop = eval(
-                "__microopClassFromInsideTheAssembler(%s)" % statement.params,
+                f"__microopClassFromInsideTheAssembler({statement.params})",
                 {},
                 parser.symbols,
             )
         except:
             print_error(
-                "Error creating microop object with mnemonic %s."
-                % statement.mnemonic
+                f"Error creating microop object with mnemonic {statement.mnemonic}."
             )
             raise
         try:
@@ -166,16 +165,13 @@ def handle_statement(parser, container, statement):
             raise
     elif statement.is_directive:
         if statement.name not in container.directives.keys():
-            raise Exception(
-                "Unrecognized directive: {}".format(statement.name)
-            )
+            raise Exception(f"Unrecognized directive: {statement.name}")
         parser.symbols[
             "__directiveFunctionFromInsideTheAssembler"
         ] = container.directives[statement.name]
         try:
             eval(
-                "__directiveFunctionFromInsideTheAssembler(%s)"
-                % statement.params,
+                f"__directiveFunctionFromInsideTheAssembler({statement.params})",
                 {},
                 parser.symbols,
             )
@@ -184,9 +180,7 @@ def handle_statement(parser, container, statement):
             print(container.directives)
             raise
     else:
-        raise Exception(
-            "Didn't recognize the type of statement {}".format(statement)
-        )
+        raise Exception(f"Didn't recognize the type of statement {statement}")
 
 
 ##########################################################################
@@ -194,6 +188,7 @@ def handle_statement(parser, container, statement):
 # Lexer specification
 #
 ##########################################################################
+
 
 # Error handler.  Just call exit.  Output formatted to work under
 # Emacs compile-mode.  Optional 'print_traceback' arg, if set to True,
@@ -207,7 +202,7 @@ def error(lineno, string, print_traceback=False):
         line_str = "%d:" % lineno
     else:
         line_str = ""
-    sys.exit("%s %s" % (line_str, string))
+    sys.exit(f"{line_str} {string}")
 
 
 reserved = ("DEF", "MACROOP", "ROM", "EXTERN")
@@ -238,6 +233,7 @@ states = (
 reserved_map = {}
 for r in reserved:
     reserved_map[r.lower()] = r
+
 
 # Ignore comments
 def t_ANY_COMMENT(t):
@@ -358,7 +354,7 @@ t_ANY_ignore = " \t\x0c"
 
 
 def t_ANY_error(t):
-    error(t.lineno, "illegal character '%s'" % t.value[0])
+    error(t.lineno, f"illegal character '{t.value[0]}'")
     t.skip(1)
 
 
@@ -367,6 +363,7 @@ def t_ANY_error(t):
 # Parser specification
 #
 ##########################################################################
+
 
 # Start symbol for a file which may have more than one macroop or rom
 # specification.
@@ -570,12 +567,12 @@ def p_directive_1(t):
 # *token*, not a grammar symbol (hence the need to use t.value)
 def p_error(t):
     if t:
-        error(t.lineno, "syntax error at '%s'" % t.value)
+        error(t.lineno, f"syntax error at '{t.value}'")
     else:
         error(0, "unknown syntax error", True)
 
 
-class MicroAssembler(object):
+class MicroAssembler:
     def __init__(self, macro_type, microops, rom=None, rom_macroop_type=None):
         self.lexer = lex.lex()
         self.parser = yacc.yacc(write_tables=False)

@@ -49,29 +49,33 @@ scons build/X86/gem5.opt
 """
 
 import argparse
-import time
-import os
 import json
+import os
+import time
 
 import m5
 from m5.objects import Root
+from m5.stats.gem5stats import get_simstat
+from m5.util import (
+    fatal,
+    warn,
+)
 
-from gem5.utils.requires import requires
+from gem5.coherence_protocol import CoherenceProtocol
 from gem5.components.boards.x86_board import X86Board
 from gem5.components.memory import DualChannelDDR4_2400
+from gem5.components.processors.cpu_types import CPUTypes
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
-from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
-from gem5.coherence_protocol import CoherenceProtocol
-from gem5.resources.resource import Resource, CustomDiskImageResource
-from gem5.simulate.simulator import Simulator
+from gem5.resources.resource import (
+    DiskImageResource,
+    Resource,
+)
 from gem5.simulate.exit_event import ExitEvent
-
-from m5.stats.gem5stats import get_simstat
-from m5.util import warn
-from m5.util import fatal
+from gem5.simulate.simulator import Simulator
+from gem5.utils.requires import requires
 
 # We check for the required gem5 build.
 
@@ -179,7 +183,7 @@ if not os.path.exists(args.image):
     print(
         "https://gem5art.readthedocs.io/en/latest/tutorials/spec-tutorial.html"
     )
-    fatal("The disk-image is not found at {}".format(args.image))
+    fatal(f"The disk-image is not found at {args.image}")
 
 # Setting up all the fixed system parameters here
 # Caches: MESI Two Level Cache Hierarchy
@@ -252,7 +256,7 @@ except FileExistsError:
 # The runscript.sh file places `m5 exit` before and after the following command
 # Therefore, we only pass this command without m5 exit.
 
-command = "{} {} {}".format(args.benchmark, args.size, output_dir)
+command = f"{args.benchmark} {args.size} {output_dir}"
 
 board.set_kernel_disk_workload(
     # The x86 linux kernel will be automatically downloaded to the
@@ -261,9 +265,7 @@ board.set_kernel_disk_workload(
     # 5.4.49
     kernel=Resource("x86-linux-kernel-4.19.83"),
     # The location of the x86 SPEC CPU 2017 image
-    disk_image=CustomDiskImageResource(
-        args.image, disk_root_partition=args.partition
-    ),
+    disk_image=DiskImageResource(args.image, root_partition=args.partition),
     readfile_contents=command,
 )
 
@@ -272,6 +274,7 @@ def handle_exit():
     print("Done bootling Linux")
     print("Resetting stats at the start of ROI!")
     m5.stats.reset()
+    processor.switch()
     yield False  # E.g., continue the simulation.
     print("Dump stats at the end of the ROI!")
     m5.stats.dump()
@@ -304,7 +307,11 @@ print("All simulation events were successful.")
 
 print("Performance statistics:")
 
-print("Simulated time: " + ((str(simulator.get_roi_ticks()[0]))))
+roi_begin_ticks = simulator.get_tick_stopwatch()[0][1]
+roi_end_ticks = simulator.get_tick_stopwatch()[1][1]
+
+print("roi simulated ticks: " + str(roi_end_ticks - roi_begin_ticks))
+
 print(
     "Ran a total of", simulator.get_current_tick() / 1e12, "simulated seconds"
 )

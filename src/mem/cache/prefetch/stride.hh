@@ -64,14 +64,12 @@ namespace gem5
 {
 
 class BaseIndexingPolicy;
-GEM5_DEPRECATED_NAMESPACE(ReplacementPolicy, replacement_policy);
 namespace replacement_policy
 {
     class Base;
 }
 struct StridePrefetcherParams;
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -162,7 +160,8 @@ class Stride : public Queued
     Stride(const StridePrefetcherParams &p);
 
     void calculatePrefetch(const PrefetchInfo &pfi,
-                           std::vector<AddrPriority> &addresses) override;
+                           std::vector<AddrPriority> &addresses,
+                           const CacheAccessor &cache) override;
 };
 
 } // namespace prefetch

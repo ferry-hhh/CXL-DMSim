@@ -59,7 +59,7 @@ class Walker : public ClockedObject
     {
       public:
         WalkerPort(const std::string &_name, Walker * _walker) :
-            RequestPort(_name, _walker), walker(_walker)
+            RequestPort(_name), walker(_walker)
         {}
 
       protected:
@@ -99,11 +99,13 @@ class Walker : public ClockedObject
         bool started;
         bool timing;
         PacketPtr tlbPkt;
+        int blockFragmentSize;
 
       public:
         WalkerState(Walker *_walker, PacketPtr pkt, bool is_functional = false)
             : walker(_walker), state(Ready), nextState(Ready), dataSize(8),
-              enableNX(true), retrying(false), started(false), tlbPkt(pkt)
+              enableNX(true), retrying(false), started(false), tlbPkt(pkt),
+              blockFragmentSize(0)
         {
             DPRINTF(GPUPTWalker, "Walker::WalkerState %p %p %d\n",
                     this, walker, state);

@@ -38,26 +38,32 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import math
+
 import m5
-from m5.objects import *
 from m5.defines import buildEnv
-from m5.util import addToPath, fatal
+from m5.objects import *
+from m5.util import (
+    addToPath,
+    fatal,
+)
+
 from gem5.isas import ISA
-from gem5.runtime import get_runtime_isa
+from gem5.runtime import get_supported_isas
 
 addToPath("../")
 
-from common import ObjectList
-from common import MemConfig
-from common import FileSystemConfig
-
-from topologies import *
+from common import (
+    FileSystemConfig,
+    MemConfig,
+    ObjectList,
+)
 from network import Network
+from topologies import *
 
 
 def define_options(parser):
-    # By default, ruby uses the simple timing cpu
-    parser.set_defaults(cpu_type="TimingSimpleCPU")
+    # By default, ruby uses the simple timing cpu and the X86 ISA
+    parser.set_defaults(cpu_type="X86TimingSimpleCPU")
 
     parser.add_argument(
         "--ruby-clock",
@@ -120,8 +126,8 @@ def define_options(parser):
     )
 
     protocol = buildEnv["PROTOCOL"]
-    exec("from . import %s" % protocol)
-    eval("%s.define_options(parser)" % protocol)
+    exec(f"from . import {protocol}")
+    eval(f"{protocol}.define_options(parser)")
     Network.define_options(parser)
 
 
@@ -207,8 +213,8 @@ def create_topology(controllers, options):
     found in configs/topologies/BaseTopology.py
     This is a wrapper for the legacy topologies.
     """
-    exec("import topologies.%s as Topo" % options.topology)
-    topology = eval("Topo.%s(controllers)" % options.topology)
+    exec(f"import topologies.{options.topology} as Topo")
+    topology = eval(f"Topo.{options.topology}(controllers)")
     return topology
 
 
@@ -221,7 +227,6 @@ def create_system(
     bootmem=None,
     cpus=None,
 ):
-
     system.ruby = RubySystem()
     ruby = system.ruby
 
@@ -242,7 +247,7 @@ def create_system(
         cpus = system.cpu
 
     protocol = buildEnv["PROTOCOL"]
-    exec("from . import %s" % protocol)
+    exec(f"from . import {protocol}")
     try:
         (cpu_sequencers, dir_cntrls, topology) = eval(
             "%s.create_system(options, full_system, system, dma_ports,\
@@ -250,7 +255,7 @@ def create_system(
             % protocol
         )
     except:
-        print("Error: could not create sytem for ruby protocol %s" % protocol)
+        print(f"Error: could not create sytem for ruby protocol {protocol}")
         raise
 
     # Create the network topology
@@ -326,9 +331,12 @@ def send_evicts(options):
     # 1. The O3 model must keep the LSQ coherent with the caches
     # 2. The x86 mwait instruction is built on top of coherence invalidations
     # 3. The local exclusive monitor in ARM systems
-    if options.cpu_type == "DerivO3CPU" or get_runtime_isa() in (
-        ISA.X86,
-        ISA.ARM,
-    ):
+    if get_supported_isas() == {ISA.NULL}:
+        return False
+
+    if (
+        hasattr(m5.objects, "DerivO3CPU")
+        and isinstance(options.cpu_type, DerivO3CPU)
+    ) or ObjectList.cpu_list.get_isa(options.cpu_type) in [ISA.X86, ISA.ARM]:
         return True
     return False

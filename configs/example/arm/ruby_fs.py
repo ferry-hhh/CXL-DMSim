@@ -33,24 +33,28 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import argparse
 import os
+
 import m5
-from m5.util import addToPath
 from m5.objects import *
 from m5.options import *
-import argparse
+from m5.util import addToPath
 
 m5.util.addToPath("../..")
 
-from common import MemConfig
-from common import ObjectList
-from common import Options
-from common import SysPaths
-from common.cores.arm import O3_ARM_v7a, HPI
-from ruby import Ruby
-
 import devices
-
+from common import (
+    MemConfig,
+    ObjectList,
+    Options,
+    SysPaths,
+)
+from common.cores.arm import (
+    HPI,
+    O3_ARM_v7a,
+)
+from ruby import Ruby
 
 default_kernel = "vmlinux.arm64"
 default_disk = "linaro-minimal-aarch64.img"
@@ -100,7 +104,7 @@ def create(args):
     """Create and configure the system object."""
 
     if args.script and not os.path.isfile(args.script):
-        print("Error: Bootscript %s does not exist" % args.script)
+        print(f"Error: Bootscript {args.script} does not exist")
         sys.exit(1)
 
     cpu_class = cpu_types[args.cpu]
@@ -115,7 +119,7 @@ def create(args):
 
     # Add CPU clusters to the system
     system.cpu_cluster = [
-        devices.CpuCluster(
+        devices.ArmCpuCluster(
             system,
             args.num_cpus,
             args.cpu_freq,
@@ -171,11 +175,11 @@ def create(args):
         # memory layout.
         "norandmaps",
         # Tell Linux where to find the root disk image.
-        "root=%s" % args.root_device,
+        f"root={args.root_device}",
         # Mount the root disk read-write by default.
         "rw",
         # Tell Linux about the amount of physical memory present.
-        "mem=%s" % args.mem_size,
+        f"mem={args.mem_size}",
     ]
     system.workload.command_line = " ".join(kernel_cmd)
 
@@ -185,7 +189,7 @@ def create(args):
 def run(args):
     cptdir = m5.options.outdir
     if args.checkpoint:
-        print("Checkpoint directory: %s" % cptdir)
+        print(f"Checkpoint directory: {cptdir}")
 
     while True:
         event = m5.simulate()
@@ -221,9 +225,7 @@ def main():
         "--root-device",
         type=str,
         default=default_root_device,
-        help="OS device name for root partition (default: {})".format(
-            default_root_device
-        ),
+        help=f"OS device name for root partition (default: {default_root_device})",
     )
     parser.add_argument(
         "--script", type=str, default="", help="Linux bootscript"

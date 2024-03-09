@@ -26,6 +26,7 @@
 
 from m5.objects import *
 
+
 # Simple ALU Instructions have a latency of 1
 class O3_ARM_v7a_Simple_Int(FUDesc):
     opList = [OpDesc(opClass="IntAlu", opLat=1)]
@@ -53,6 +54,7 @@ class O3_ARM_v7a_FP(FUDesc):
         OpDesc(opClass="SimdMisc", opLat=3),
         OpDesc(opClass="SimdMult", opLat=5),
         OpDesc(opClass="SimdMultAcc", opLat=5),
+        OpDesc(opClass="SimdMatMultAcc", opLat=5),
         OpDesc(opClass="SimdShift", opLat=3),
         OpDesc(opClass="SimdShiftAcc", opLat=3),
         OpDesc(opClass="SimdSqrt", opLat=9),
@@ -64,6 +66,7 @@ class O3_ARM_v7a_FP(FUDesc):
         OpDesc(opClass="SimdFloatMisc", opLat=3),
         OpDesc(opClass="SimdFloatMult", opLat=3),
         OpDesc(opClass="SimdFloatMultAcc", opLat=5),
+        OpDesc(opClass="SimdFloatMatMultAcc", opLat=5),
         OpDesc(opClass="SimdFloatSqrt", opLat=9),
         OpDesc(opClass="FloatAdd", opLat=5),
         OpDesc(opClass="FloatCmp", opLat=5),
@@ -105,15 +108,19 @@ class O3_ARM_v7a_FUP(FUPool):
     ]
 
 
+class O3_ARM_v7a_BTB(SimpleBTB):
+    numEntries = 2048
+    tagBits = 18
+
+
 # Bi-Mode Branch Predictor
 class O3_ARM_v7a_BP(BiModeBP):
+    btb = O3_ARM_v7a_BTB()
+    ras = ReturnAddrStack(numEntries=16)
     globalPredictorSize = 8192
     globalCtrBits = 2
     choicePredictorSize = 8192
     choiceCtrBits = 2
-    BTBEntries = 2048
-    BTBTagSize = 18
-    RASSize = 16
     instShiftAmt = 2
 
 
@@ -200,9 +207,8 @@ class O3_ARM_v7aL2(Cache):
     size = "1MB"
     assoc = 16
     write_buffers = 8
-    prefetch_on_access = True
     clusivity = "mostly_excl"
     # Simple stride prefetcher
-    prefetcher = StridePrefetcher(degree=8, latency=1)
+    prefetcher = StridePrefetcher(degree=8, latency=1, prefetch_on_access=True)
     tags = BaseSetAssoc()
     replacement_policy = RandomRP()

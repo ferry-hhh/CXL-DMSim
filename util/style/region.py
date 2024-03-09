@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-class _neg_inf(object):
+class _neg_inf:
     """This object always compares less than any other object"""
 
     def __repr__(self):
@@ -53,7 +53,7 @@ class _neg_inf(object):
 neg_inf = _neg_inf()
 
 
-class _pos_inf(object):
+class _pos_inf:
     """This object always compares greater than any other object"""
 
     def __repr__(self):
@@ -100,7 +100,7 @@ class Region(tuple):
         return tuple.__new__(cls, args)
 
     def __repr__(self):
-        return "Region(%s, %s)" % (self[0], self[1])
+        return f"Region({self[0]}, {self[1]})"
 
     @property
     def start(self):
@@ -176,7 +176,7 @@ class Region(tuple):
         return self[1] > other
 
 
-class Regions(object):
+class Regions:
     """A set of regions (ranges).  Basically a region with holes.
     Includes utility functions to merge regions and figure out if
     something is in one of the regions."""
@@ -267,7 +267,7 @@ class Regions(object):
         return result
 
     def __repr__(self):
-        return "Regions(%s)" % ([(r[0], r[1]) for r in self.regions],)
+        return f"Regions({[(r[0], r[1]) for r in self.regions]})"
 
 
 all_regions = Regions(Region(neg_inf, pos_inf))
@@ -279,12 +279,12 @@ if __name__ == "__main__":
     n = Region(9, 10)
 
     def test(left, right):
-        print("%s == %s: %s" % (left, right, left == right))
-        print("%s != %s: %s" % (left, right, left != right))
-        print("%s <  %s: %s" % (left, right, left < right))
-        print("%s <= %s: %s" % (left, right, left <= right))
-        print("%s >  %s: %s" % (left, right, left > right))
-        print("%s >= %s: %s" % (left, right, left >= right))
+        print(f"{left} == {right}: {left == right}")
+        print(f"{left} != {right}: {left != right}")
+        print(f"{left} <  {right}: {left < right}")
+        print(f"{left} <= {right}: {left <= right}")
+        print(f"{left} >  {right}: {left > right}")
+        print(f"{left} >= {right}: {left >= right}")
         print("\n")
 
     test(neg_inf, neg_inf)

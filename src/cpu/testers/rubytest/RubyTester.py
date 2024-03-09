@@ -25,10 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
 from m5.proxy import *
-
-from m5.objects.ClockedObject import ClockedObject
 
 
 class RubyTester(ClockedObject):
@@ -38,7 +37,7 @@ class RubyTester(ClockedObject):
 
     num_cpus = Param.Int("number of cpus / RubyPorts")
     cpuInstDataPort = VectorRequestPort(
-        "cpu combo ports to inst & " "data caches"
+        "cpu combo ports to inst & data caches"
     )
     cpuInstPort = VectorRequestPort("cpu ports to only inst caches")
     cpuDataPort = VectorRequestPort("cpu ports to only data caches")

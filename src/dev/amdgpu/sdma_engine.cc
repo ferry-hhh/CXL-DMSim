@@ -49,17 +49,22 @@ SDMAEngine::SDMAEngine(const SDMAEngineParams &p)
     : DmaVirtDevice(p), id(0), gfxBase(0), gfxRptr(0),
       gfxDoorbell(0), gfxDoorbellOffset(0), gfxWptr(0), pageBase(0),
       pageRptr(0), pageDoorbell(0), pageDoorbellOffset(0),
-      pageWptr(0), gpuDevice(nullptr), walker(p.walker)
+      pageWptr(0), gpuDevice(nullptr), walker(p.walker),
+      mmioBase(p.mmio_base), mmioSize(p.mmio_size)
 {
     gfx.ib(&gfxIb);
     gfxIb.parent(&gfx);
     gfx.valid(true);
     gfxIb.valid(true);
+    gfx.queueType(SDMAGfx);
+    gfxIb.queueType(SDMAGfx);
 
     page.ib(&pageIb);
     pageIb.parent(&page);
     page.valid(true);
     pageIb.valid(true);
+    page.queueType(SDMAPage);
+    pageIb.queueType(SDMAPage);
 
     rlc0.ib(&rlc0Ib);
     rlc0Ib.parent(&rlc0);
@@ -83,6 +88,18 @@ SDMAEngine::getIHClientId()
         return SOC15_IH_CLIENTID_SDMA0;
       case 1:
         return SOC15_IH_CLIENTID_SDMA1;
+      case 2:
+        return SOC15_IH_CLIENTID_SDMA2;
+      case 3:
+        return SOC15_IH_CLIENTID_SDMA3;
+      case 4:
+        return SOC15_IH_CLIENTID_SDMA4;
+      case 5:
+        return SOC15_IH_CLIENTID_SDMA5;
+      case 6:
+        return SOC15_IH_CLIENTID_SDMA6;
+      case 7:
+        return SOC15_IH_CLIENTID_SDMA7;
       default:
         panic("Unknown SDMA id");
     }
@@ -161,30 +178,40 @@ SDMAEngine::translate(Addr vaddr, Addr size)
 }
 
 void
-SDMAEngine::registerRLCQueue(Addr doorbell, Addr rb_base, uint32_t size,
-                             Addr rptr_wb_addr)
+SDMAEngine::registerRLCQueue(Addr doorbell, Addr mqdAddr, SDMAQueueDesc *mqd)
 {
+    uint32_t rlc_size = 4UL << bits(mqd->sdmax_rlcx_rb_cntl, 6, 1);
+    Addr rptr_wb_addr = mqd->sdmax_rlcx_rb_rptr_addr_hi;
+    rptr_wb_addr <<= 32;
+    rptr_wb_addr |= mqd->sdmax_rlcx_rb_rptr_addr_lo;
+
     // Get first free RLC
     if (!rlc0.valid()) {
         DPRINTF(SDMAEngine, "Doorbell %lx mapped to RLC0\n", doorbell);
         rlcInfo[0] = doorbell;
         rlc0.valid(true);
-        rlc0.base(rb_base);
+        rlc0.base(mqd->rb_base << 8);
+        rlc0.size(rlc_size);
         rlc0.rptr(0);
-        rlc0.wptr(0);
+        rlc0.incRptr(mqd->rptr);
+        rlc0.setWptr(mqd->wptr);
         rlc0.rptrWbAddr(rptr_wb_addr);
         rlc0.processing(false);
-        rlc0.size(size);
+        rlc0.setMQD(mqd);
+        rlc0.setMQDAddr(mqdAddr);
     } else if (!rlc1.valid()) {
         DPRINTF(SDMAEngine, "Doorbell %lx mapped to RLC1\n", doorbell);
         rlcInfo[1] = doorbell;
         rlc1.valid(true);
-        rlc1.base(rb_base);
+        rlc1.base(mqd->rb_base << 8);
+        rlc1.size(rlc_size);
         rlc1.rptr(0);
-        rlc1.wptr(0);
+        rlc1.incRptr(mqd->rptr);
+        rlc1.setWptr(mqd->wptr);
         rlc1.rptrWbAddr(rptr_wb_addr);
         rlc1.processing(false);
-        rlc1.size(size);
+        rlc1.setMQD(mqd);
+        rlc1.setMQDAddr(mqdAddr);
     } else {
         panic("No free RLCs. Check they are properly unmapped.");
     }
@@ -195,9 +222,37 @@ SDMAEngine::unregisterRLCQueue(Addr doorbell)
 {
     DPRINTF(SDMAEngine, "Unregistering RLC queue at %#lx\n", doorbell);
     if (rlcInfo[0] == doorbell) {
+        SDMAQueueDesc *mqd = rlc0.getMQD();
+        if (mqd) {
+            DPRINTF(SDMAEngine, "Writing RLC0 SDMAMQD back to %#lx\n",
+                    rlc0.getMQDAddr());
+
+            mqd->rptr = rlc0.globalRptr();
+            mqd->wptr = rlc0.getWptr();
+
+            auto cb = new DmaVirtCallback<uint32_t>(
+                [ = ] (const uint32_t &) { });
+            dmaWriteVirt(rlc0.getMQDAddr(), sizeof(SDMAQueueDesc), cb, mqd);
+        } else {
+            warn("RLC0 SDMAMQD address invalid\n");
+        }
         rlc0.valid(false);
         rlcInfo[0] = 0;
     } else if (rlcInfo[1] == doorbell) {
+        SDMAQueueDesc *mqd = rlc1.getMQD();
+        if (mqd) {
+            DPRINTF(SDMAEngine, "Writing RLC1 SDMAMQD back to %#lx\n",
+                    rlc1.getMQDAddr());
+
+            mqd->rptr = rlc1.globalRptr();
+            mqd->wptr = rlc1.getWptr();
+
+            auto cb = new DmaVirtCallback<uint32_t>(
+                [ = ] (const uint32_t &) { });
+            dmaWriteVirt(rlc1.getMQDAddr(), sizeof(SDMAQueueDesc), cb, mqd);
+        } else {
+            warn("RLC1 SDMAMQD address invalid\n");
+        }
         rlc1.valid(false);
         rlcInfo[1] = 0;
     } else {
@@ -209,7 +264,9 @@ void
 SDMAEngine::deallocateRLCQueues()
 {
     for (auto doorbell: rlcInfo) {
-        unregisterRLCQueue(doorbell);
+        if (doorbell) {
+            unregisterRLCQueue(doorbell);
+        }
     }
 }
 
@@ -453,9 +510,12 @@ SDMAEngine::decodeHeader(SDMAQueue *q, uint32_t header)
         dmaReadVirt(q->rptr(), sizeof(sdmaAtomic), cb, dmaBuffer);
         } break;
       case SDMA_OP_CONST_FILL: {
-        q->incRptr(sizeof(sdmaConstFill));
-        warn("SDMA_OP_CONST_FILL not implemented");
-        decodeNext(q);
+        DPRINTF(SDMAEngine, "SDMA Constant fill packet\n");
+        dmaBuffer = new sdmaConstFill();
+        cb = new DmaVirtCallback<uint64_t>(
+            [ = ] (const uint64_t &)
+                { constFill(q, (sdmaConstFill *)dmaBuffer, header); });
+        dmaReadVirt(q->rptr(), sizeof(sdmaConstFill), cb, dmaBuffer);
         } break;
       case SDMA_OP_PTEPDE: {
         DPRINTF(SDMAEngine, "SDMA PTEPDE packet\n");
@@ -727,11 +787,7 @@ SDMAEngine::trap(SDMAQueue *q, sdmaTrap *pkt)
 
     DPRINTF(SDMAEngine, "Trap contextId: %p\n", pkt->intrContext);
 
-    uint32_t ring_id = 0;
-    assert(page.processing() ^ gfx.processing());
-    if (page.processing()) {
-        ring_id = 3;
-    }
+    uint32_t ring_id = (q->queueType() == SDMAPage) ? 3 : 0;
 
     gpuDevice->getIH()->prepareInterruptCookie(pkt->intrContext, ring_id,
                                                getIHClientId(), TRAP_ID);
@@ -792,7 +848,7 @@ SDMAEngine::pollRegMem(SDMAQueue *q, sdmaPollRegMemHeader *header,
             auto cb = new DmaVirtCallback<uint32_t>(
                 [ = ] (const uint32_t &dma_buffer) {
                     pollRegMemRead(q, header, pkt, dma_buffer, 0); });
-            dmaReadVirt(pkt->address >> 3, sizeof(uint32_t), cb,
+            dmaReadVirt(pkt->address, sizeof(uint32_t), cb,
                         (void *)&cb->dmaBuffer);
         } else {
             panic("SDMA poll mem operation not implemented.");
@@ -969,6 +1025,68 @@ SDMAEngine::atomicDone(SDMAQueue *q, sdmaAtomicHeader *header, sdmaAtomic *pkt,
 
     delete dmaBuffer;
     delete header;
+    delete pkt;
+    decodeNext(q);
+}
+
+void
+SDMAEngine::constFill(SDMAQueue *q, sdmaConstFill *pkt, uint32_t header)
+{
+    q->incRptr(sizeof(sdmaConstFill));
+
+    sdmaConstFillHeader fill_header;
+    fill_header.ordinal = header;
+
+    DPRINTF(SDMAEngine, "ConstFill %lx srcData %x count %d size %d sw %d\n",
+            pkt->addr, pkt->srcData, pkt->count, fill_header.fillsize,
+            fill_header.sw);
+
+    // Count is number of <size> elements - 1. Size is log2 of byte size.
+    int fill_bytes = (pkt->count + 1) * (1 << fill_header.fillsize);
+    uint8_t *fill_data = new uint8_t[fill_bytes];
+
+    memset(fill_data, pkt->srcData, fill_bytes);
+
+    Addr device_addr = getDeviceAddress(pkt->addr);
+    if (device_addr) {
+        DPRINTF(SDMAEngine, "ConstFill %d bytes of %x to device at %lx\n",
+                fill_bytes, pkt->srcData, pkt->addr);
+
+        auto cb = new EventFunctionWrapper(
+            [ = ]{ constFillDone(q, pkt, fill_data); }, name());
+
+        // Copy the minimum page size at a time in case the physical addresses
+        // are not contiguous.
+        ChunkGenerator gen(pkt->addr, fill_bytes, AMDGPU_MMHUB_PAGE_SIZE);
+        for (; !gen.done(); gen.next()) {
+            Addr chunk_addr = getDeviceAddress(gen.addr());
+            assert(chunk_addr);
+
+            DPRINTF(SDMAEngine, "Copying chunk of %d bytes from %#lx (%#lx)\n",
+                    gen.size(), gen.addr(), chunk_addr);
+
+            gpuDevice->getMemMgr()->writeRequest(chunk_addr, fill_data,
+                                                 gen.size(), 0,
+                                                 gen.last() ? cb : nullptr);
+            fill_data += gen.size();
+        }
+    } else {
+        DPRINTF(SDMAEngine, "ConstFill %d bytes of %x to host at %lx\n",
+                fill_bytes, pkt->srcData, pkt->addr);
+
+        auto cb = new DmaVirtCallback<uint64_t>(
+            [ = ] (const uint64_t &)
+                { constFillDone(q, pkt, fill_data); });
+        dmaWriteVirt(pkt->addr, fill_bytes, cb, (void *)fill_data);
+    }
+}
+
+void
+SDMAEngine::constFillDone(SDMAQueue *q, sdmaConstFill *pkt, uint8_t *fill_data)
+{
+    DPRINTF(SDMAEngine, "ConstFill to %lx done\n", pkt->addr);
+
+    delete fill_data;
     delete pkt;
     decodeNext(q);
 }
@@ -1200,6 +1318,10 @@ SDMAEngine::setGfxDoorbellOffsetLo(uint32_t data)
 {
     gfxDoorbellOffset = insertBits(gfxDoorbellOffset, 31, 0, 0);
     gfxDoorbellOffset |= data;
+    if (bits(gfxDoorbell, 28, 28)) {
+        gpuDevice->setDoorbellType(gfxDoorbellOffset, QueueType::SDMAGfx);
+        gpuDevice->setSDMAEngine(gfxDoorbellOffset, this);
+    }
 }
 
 void
@@ -1210,9 +1332,11 @@ SDMAEngine::setGfxDoorbellOffsetHi(uint32_t data)
 }
 
 void
-SDMAEngine::setGfxSize(uint64_t data)
+SDMAEngine::setGfxSize(uint32_t data)
 {
-    gfx.size(data);
+    uint32_t rb_size = bits(data, 6, 1);
+    assert(rb_size >= 6 && rb_size <= 62);
+    gfx.size(1 << (rb_size + 2));
 }
 
 void
@@ -1280,6 +1404,10 @@ SDMAEngine::setPageDoorbellOffsetLo(uint32_t data)
 {
     pageDoorbellOffset = insertBits(pageDoorbellOffset, 31, 0, 0);
     pageDoorbellOffset |= data;
+    if (bits(pageDoorbell, 28, 28)) {
+        gpuDevice->setDoorbellType(pageDoorbellOffset, QueueType::SDMAPage);
+        gpuDevice->setSDMAEngine(pageDoorbellOffset, this);
+    }
 }
 
 void
@@ -1290,9 +1418,11 @@ SDMAEngine::setPageDoorbellOffsetHi(uint32_t data)
 }
 
 void
-SDMAEngine::setPageSize(uint64_t data)
+SDMAEngine::setPageSize(uint32_t data)
 {
-    page.size(data);
+    uint32_t rb_size = bits(data, 6, 1);
+    assert(rb_size >= 6 && rb_size <= 62);
+    page.size(1 << (rb_size + 2));
 }
 
 void

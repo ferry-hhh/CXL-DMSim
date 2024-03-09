@@ -37,14 +37,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.defines import buildEnv
-from m5.params import *
-from m5.proxy import *
-
 from m5.objects.BaseCPU import BaseCPU
-from m5.objects.FUPool import *
 
 # from m5.objects.O3Checker import O3Checker
 from m5.objects.BranchPredictor import *
+from m5.objects.FUPool import *
+from m5.params import *
+from m5.proxy import *
 
 
 class SMTFetchPolicy(ScopedEnum):
@@ -79,47 +78,43 @@ class BaseO3CPU(BaseCPU):
     activity = Param.Unsigned(0, "Initial count")
 
     cacheStorePorts = Param.Unsigned(
-        4, "Cache Ports. " "Constrains stores only."
+        200, "Cache Ports. Constrains stores only."
     )
-    cacheLoadPorts = Param.Unsigned(
-        4, "Cache Ports. " "Constrains loads only."
-    )
+    cacheLoadPorts = Param.Unsigned(200, "Cache Ports. Constrains loads only.")
 
     decodeToFetchDelay = Param.Cycles(1, "Decode to fetch delay")
     renameToFetchDelay = Param.Cycles(1, "Rename to fetch delay")
-    iewToFetchDelay = Param.Cycles(
-        1, "Issue/Execute/Writeback to fetch " "delay"
-    )
+    iewToFetchDelay = Param.Cycles(1, "Issue/Execute/Writeback to fetch delay")
     commitToFetchDelay = Param.Cycles(1, "Commit to fetch delay")
     fetchWidth = Param.Unsigned(8, "Fetch width")
     fetchBufferSize = Param.Unsigned(64, "Fetch buffer size in bytes")
     fetchQueueSize = Param.Unsigned(
-        128, "Fetch queue size in micro-ops " "per-thread"
+        32, "Fetch queue size in micro-ops per-thread"
     )
 
     renameToDecodeDelay = Param.Cycles(1, "Rename to decode delay")
     iewToDecodeDelay = Param.Cycles(
-        1, "Issue/Execute/Writeback to decode " "delay"
+        1, "Issue/Execute/Writeback to decode delay"
     )
     commitToDecodeDelay = Param.Cycles(1, "Commit to decode delay")
     fetchToDecodeDelay = Param.Cycles(1, "Fetch to decode delay")
     decodeWidth = Param.Unsigned(8, "Decode width")
 
     iewToRenameDelay = Param.Cycles(
-        1, "Issue/Execute/Writeback to rename " "delay"
+        1, "Issue/Execute/Writeback to rename delay"
     )
     commitToRenameDelay = Param.Cycles(1, "Commit to rename delay")
     decodeToRenameDelay = Param.Cycles(1, "Decode to rename delay")
     renameWidth = Param.Unsigned(8, "Rename width")
 
     commitToIEWDelay = Param.Cycles(
-        1, "Commit to " "Issue/Execute/Writeback delay"
+        1, "Commit to Issue/Execute/Writeback delay"
     )
     renameToIEWDelay = Param.Cycles(
-        2, "Rename to " "Issue/Execute/Writeback delay"
+        2, "Rename to Issue/Execute/Writeback delay"
     )
     issueToExecuteDelay = Param.Cycles(
-        1, "Issue to execute delay (internal " "to the IEW stage)"
+        1, "Issue to execute delay (internal to the IEW stage)"
     )
     dispatchWidth = Param.Unsigned(8, "Dispatch width")
     issueWidth = Param.Unsigned(8, "Issue width")
@@ -127,7 +122,7 @@ class BaseO3CPU(BaseCPU):
     fuPool = Param.FUPool(DefaultFUPool(), "Functional Unit pool")
 
     iewToCommitDelay = Param.Cycles(
-        1, "Issue/Execute/Writeback to commit " "delay"
+        1, "Issue/Execute/Writeback to commit delay"
     )
     renameToROBDelay = Param.Cycles(1, "Rename to reorder buffer delay")
     commitWidth = Param.Unsigned(8, "Commit width")
@@ -166,14 +161,13 @@ class BaseO3CPU(BaseCPU):
         256, "Number of physical integer registers"
     )
     numPhysFloatRegs = Param.Unsigned(
-        256, "Number of physical floating point " "registers"
+        256, "Number of physical floating point registers"
     )
-    numPhysVecRegs = Param.Unsigned(
-        256, "Number of physical vector " "registers"
-    )
+    numPhysVecRegs = Param.Unsigned(256, "Number of physical vector registers")
     numPhysVecPredRegs = Param.Unsigned(
-        32, "Number of physical predicate " "registers"
+        32, "Number of physical predicate registers"
     )
+    numPhysMatRegs = Param.Unsigned(2, "Number of physical matrix registers")
     # most ISAs don't use condition-code regs, so default is 0
     numPhysCCRegs = Param.Unsigned(0, "Number of physical cc registers")
     numIQEntries = Param.Unsigned(128, "Number of instruction queue entries")

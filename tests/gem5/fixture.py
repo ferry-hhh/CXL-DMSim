@@ -36,36 +36,45 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
-import tempfile
-import shutil
-import sys
-import socket
-import threading
 import gzip
-
+import os
+import shutil
+import socket
+import sys
+import tempfile
+import threading
 import urllib.error
 import urllib.request
+from typing import (
+    List,
+    Optional,
+)
 
-from testlib.fixture import Fixture
-from testlib.configuration import config, constants
-from testlib.helper import log_call, cacheresult, joinpath, absdirpath
 import testlib.log as log
+from testlib.configuration import (
+    config,
+    constants,
+)
+from testlib.fixture import Fixture
+from testlib.helper import (
+    absdirpath,
+    cacheresult,
+    joinpath,
+    log_call,
+)
 from testlib.state import Result
 
 
 class VariableFixture(Fixture):
     def __init__(self, value=None, name=None):
-        super(VariableFixture, self).__init__(name=name)
+        super().__init__(name=name)
         self.value = value
 
 
 class TempdirFixture(Fixture):
     def __init__(self):
         self.path = None
-        super(TempdirFixture, self).__init__(
-            name=constants.tempdir_fixture_name
-        )
+        super().__init__(name=constants.tempdir_fixture_name)
 
     def setup(self, testitem):
         self.path = tempfile.mkdtemp(prefix="gem5out")
@@ -74,7 +83,7 @@ class TempdirFixture(Fixture):
         suiteUID = testitem.metadata.uid.suite
         testUID = testitem.metadata.name
         testing_result_folder = os.path.join(
-            config.result_path, "SuiteUID:" + suiteUID, "TestUID:" + testUID
+            config.result_path, "SuiteUID-" + suiteUID, "TestUID-" + testUID
         )
 
         # Copy the output files of the run from /tmp to testing-results
@@ -111,7 +120,7 @@ class UniqueFixture(Fixture):
         if target in cls.fixtures:
             obj = cls.fixtures[target]
         else:
-            obj = super(UniqueFixture, cls).__new__(cls)
+            obj = super().__new__(cls)
             obj.lock = threading.Lock()
             obj.target = target
             cls.fixtures[target] = obj
@@ -121,7 +130,7 @@ class UniqueFixture(Fixture):
         with self.lock:
             if hasattr(self, "_init_done"):
                 return
-            super(UniqueFixture, self).__init__(self, **kwargs)
+            super().__init__(self, **kwargs)
             self._init(*args, **kwargs)
             self._init_done = True
 
@@ -144,12 +153,51 @@ class SConsFixture(UniqueFixture):
     """
 
     def __new__(cls, target):
-        obj = super(SConsFixture, cls).__new__(cls, target)
+        obj = super().__new__(cls, target)
         return obj
 
     def _setup(self, testitem):
         if config.skip_build:
             return
+
+        if not self.targets:
+            log.test_log.error("No SCons targets specified.")
+        else:
+            log.test_log.message(
+                "Building the following targets. This may take a while."
+            )
+            log.test_log.message(f"{', '.join(self.targets)}")
+            log.test_log.message(
+                "You may want to use --skip-build, or use 'rerun'."
+            )
+
+        if self.protocol:
+            defconfig_command = [
+                "scons",
+                "-C",
+                self.directory,
+                "--ignore-style",
+                "--no-compress-debug",
+                "defconfig",
+                self.target_dir,
+                joinpath(self.directory, "build_opts", self.isa.upper()),
+            ]
+            setconfig_command = [
+                "scons",
+                "-C",
+                self.directory,
+                "--ignore-style",
+                "--no-compress-debug",
+                "setconfig",
+                self.target_dir,
+                f"RUBY_PROTOCOL_{self.protocol.upper()}=y",
+            ]
+            log_call(
+                log.test_log, defconfig_command, time=None, stderr=sys.stderr
+            )
+            log_call(
+                log.test_log, setconfig_command, time=None, stderr=sys.stderr
+            )
 
         command = [
             "scons",
@@ -160,27 +208,7 @@ class SConsFixture(UniqueFixture):
             "--ignore-style",
             "--no-compress-debug",
         ]
-
-        if not self.targets:
-            log.test_log.warn(
-                "No SCons targets specified, this will"
-                " build the default all target.\n"
-                "This is likely unintended, and you"
-                " may wish to kill testlib and reconfigure."
-            )
-        else:
-            log.test_log.message(
-                "Building the following targets." " This may take a while."
-            )
-            log.test_log.message("%s" % (", ".join(self.targets)))
-            log.test_log.message(
-                "You may want to run with only a single ISA"
-                "(--isa=), use --skip-build, or use 'rerun'."
-            )
-
         command.extend(self.targets)
-        if self.options:
-            command.extend(self.options)
         log_call(log.test_log, command, time=None, stderr=sys.stderr)
 
 
@@ -189,8 +217,9 @@ class Gem5Fixture(SConsFixture):
         target_dir = joinpath(config.build_dir, isa.upper())
         if protocol:
             target_dir += "_" + protocol
-        target = joinpath(target_dir, "gem5.%s" % variant)
-        obj = super(Gem5Fixture, cls).__new__(cls, target)
+        target = joinpath(target_dir, f"gem5.{variant}")
+        obj = super().__new__(cls, target)
+        obj.target_dir = target_dir
         return obj
 
     def _init(self, isa, variant, protocol=None):
@@ -200,23 +229,26 @@ class Gem5Fixture(SConsFixture):
         self.path = self.target
         self.directory = config.base_dir
 
-        self.options = []
-        if protocol:
-            self.options = ["--default=" + isa.upper(), "PROTOCOL=" + protocol]
+        self.isa = isa
+        self.protocol = protocol
         self.set_global()
+
+    def get_get_build_info(self) -> Optional[str]:
+        build_target = self.target
+        return build_target
 
 
 class MakeFixture(Fixture):
     def __init__(self, directory, *args, **kwargs):
-        name = "make -C %s" % directory
-        super(MakeFixture, self).__init__(
+        name = f"make -C {directory}"
+        super().__init__(
             build_once=True, lazy_init=False, name=name, *args, **kwargs
         )
         self.targets = []
         self.directory = directory
 
     def setup(self):
-        super(MakeFixture, self).setup()
+        super().setup()
         targets = set(self.required_by)
         command = ["make", "-C", self.directory]
         command.extend([target.target for target in targets])
@@ -231,7 +263,7 @@ class MakeTarget(Fixture):
         scons we need to know what invocation to attach to. If none given,
         creates its own.
         """
-        super(MakeTarget, self).__init__(name=target, *args, **kwargs)
+        super().__init__(name=target, *args, **kwargs)
         self.target = self.name
 
         if make_fixture is None:
@@ -245,7 +277,7 @@ class MakeTarget(Fixture):
         self.require(self.make_fixture)
 
     def setup(self, testitem):
-        super(MakeTarget, self).setup()
+        super().setup()
         self.make_fixture.setup()
         return self
 
@@ -255,7 +287,7 @@ class TestProgram(MakeTarget):
         make_dir = joinpath(config.bin_dir, program)
         make_fixture = MakeFixture(make_dir)
         target = joinpath("bin", isa, os, program)
-        super(TestProgram, self).__init__(target, make_fixture)
+        super().__init__(target, make_fixture)
         self.path = joinpath(make_dir, target)
         self.recompile = recompile
 
@@ -275,7 +307,7 @@ class DownloadedProgram(UniqueFixture):
 
     def __new__(cls, url, path, filename, gzip_decompress=False):
         target = joinpath(path, filename)
-        return super(DownloadedProgram, cls).__new__(cls, target)
+        return super().__new__(cls, target)
 
     def _init(self, url, path, filename, gzip_decompress=False, **kwargs):
         """
@@ -319,7 +351,9 @@ class DownloadedProgram(UniqueFixture):
             urllib.request.urlretrieve(self.url, self.filename)
 
     def _getremotetime(self):
-        import datetime, time
+        import datetime
+        import time
+
         import _strptime  # Needed for python threading bug
 
         u = urllib.request.urlopen(self.url, timeout=10)
@@ -359,7 +393,6 @@ class DownloadedArchive(DownloadedProgram):
         with tarfile.open(self.filename) as tf:
 
             def is_within_directory(directory, target):
-
                 abs_directory = os.path.abspath(directory)
                 abs_target = os.path.abspath(target)
 
@@ -370,7 +403,6 @@ class DownloadedArchive(DownloadedProgram):
             def safe_extract(
                 tar, path=".", members=None, *, numeric_owner=False
             ):
-
                 for member in tar.getmembers():
                     member_path = os.path.join(path, member.name)
                     if not is_within_directory(path, member_path):
@@ -391,7 +423,7 @@ class DownloadedArchive(DownloadedProgram):
             except (urllib.error.URLError, socket.timeout):
                 # Problem checking the server, use the old files.
                 log.test_log.debug(
-                    "Could not contact server. " "Binaries may be old."
+                    "Could not contact server. Binaries may be old."
                 )
                 return
             # If the server version is more recent, download it

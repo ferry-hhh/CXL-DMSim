@@ -38,9 +38,9 @@
 # Pipeline activity viewer for the O3 CPU model.
 
 import argparse
+import copy
 import os
 import sys
-import copy
 
 # Temporary storage for instructions. The queue is filled in out-of-order
 # until it reaches 'max_threshold' number of instructions. It is then
@@ -425,7 +425,7 @@ def print_inst(
                 )
             )
             if timestamps:
-                outfile.write("  f=%s, r=%s" % (inst["fetch"], inst["retire"]))
+                outfile.write(f"  f={inst['fetch']}, r={inst['retire']}")
             outfile.write("\n")
         else:
             outfile.write("...".center(12) + "\n")
@@ -511,7 +511,7 @@ def main():
         sys.exit(1)
     # Process trace
     print("Processing trace... ", end=" ")
-    with open(args.tracefile, "r") as trace:
+    with open(args.tracefile) as trace:
         with open(args.outfile, "w") as out:
             process_trace(
                 trace,
@@ -522,7 +522,7 @@ def main():
                 args.timestamps,
                 args.only_committed,
                 args.store_completions,
-                *(tick_range + inst_range)
+                *(tick_range + inst_range),
             )
     print("done!")
 

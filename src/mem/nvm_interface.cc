@@ -402,9 +402,9 @@ NVMInterface::processReadReadyEvent()
 
 bool
 NVMInterface::burstReady(MemPacket* pkt) const {
-    bool read_rdy =  pkt->isRead() && (ctrl->inReadBusState(true)) &&
-               (pkt->readyTime <= curTick()) && (numReadDataReady > 0);
-    bool write_rdy =  !pkt->isRead() && !ctrl->inReadBusState(true) &&
+    bool read_rdy =  pkt->isRead() && (ctrl->inReadBusState(true, this)) &&
+                (pkt->readyTime <= curTick()) && (numReadDataReady > 0);
+    bool write_rdy =  !pkt->isRead() && !ctrl->inReadBusState(true, this) &&
                 !writeRespQueueFull();
     return (read_rdy || write_rdy);
 }
@@ -538,7 +538,7 @@ NVMInterface::doBurstAccess(MemPacket* pkt, Tick next_burst_at,
     // Update the stats
     if (pkt->isRead()) {
         stats.readBursts++;
-        stats.bytesRead += burstSize;
+        stats.nvmBytesRead += burstSize;
         stats.perBankRdBursts[pkt->bankId]++;
         stats.pendingReads.sample(numPendingReads);
 
@@ -548,7 +548,7 @@ NVMInterface::doBurstAccess(MemPacket* pkt, Tick next_burst_at,
         stats.totQLat += cmd_at - pkt->entryTime;
     } else {
         stats.writeBursts++;
-        stats.bytesWritten += burstSize;
+        stats.nvmBytesWritten += burstSize;
         stats.perBankWrBursts[pkt->bankId]++;
     }
 
@@ -613,7 +613,7 @@ NVMInterface::isBusy(bool read_queue_empty, bool all_writes_nvm)
      // Only assert busy for the write case when there are also
      // no reads in Q and the write queue only contains NVM commands
      // This allows the bus state to switch and service reads
-     return (ctrl->inReadBusState(true) ?
+     return (ctrl->inReadBusState(true, this) ?
                  (numReadDataReady == 0) && !read_queue_empty :
                  writeRespQueueFull() && read_queue_empty &&
                                          all_writes_nvm);
@@ -649,6 +649,11 @@ NVMInterface::NVMStats::NVMStats(NVMInterface &_nvm)
     ADD_STAT(avgMemAccLat, statistics::units::Rate<
                 statistics::units::Tick, statistics::units::Count>::get(),
              "Average memory access latency per NVM burst"),
+
+    ADD_STAT(nvmBytesRead, statistics::units::Byte::get(),
+            "Total bytes read"),
+    ADD_STAT(nvmBytesWritten, statistics::units::Byte::get(),
+            "Total bytes written"),
 
     ADD_STAT(avgRdBW, statistics::units::Rate<
                 statistics::units::Byte, statistics::units::Second>::get(),
@@ -715,8 +720,8 @@ NVMInterface::NVMStats::regStats()
     avgBusLat = totBusLat / readBursts;
     avgMemAccLat = totMemAccLat / readBursts;
 
-    avgRdBW = (bytesRead / 1000000) / simSeconds;
-    avgWrBW = (bytesWritten / 1000000) / simSeconds;
+    avgRdBW = (nvmBytesRead / 1000000) / simSeconds;
+    avgWrBW = (nvmBytesWritten / 1000000) / simSeconds;
     peakBW = (sim_clock::Frequency / nvm.tBURST) *
               nvm.burstSize / 1000000;
 

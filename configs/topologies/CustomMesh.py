@@ -36,11 +36,10 @@
 
 import math
 
-from m5.util import fatal
-from m5.params import *
-from m5.objects import *
-
 from m5.defines import buildEnv
+from m5.objects import *
+from m5.params import *
+from m5.util import fatal
 
 if buildEnv["PROTOCOL"] == "CHI":
     import ruby.CHI_config as CHI
@@ -67,7 +66,6 @@ class CustomMesh(SimpleTopology):
         cross_links,
         cross_link_latency,
     ):
-
         # East->West, West->East, North->South, South->North
         # XY routing weights
         link_weights = [1, 1, 2, 2]
@@ -171,7 +169,9 @@ class CustomMesh(SimpleTopology):
     def _createRNFRouter(self, mesh_router):
         # Create a zero-latency router bridging node controllers
         # and the mesh router
-        node_router = self._Router(router_id=len(self._routers), latency=0)
+        node_router = self._Router(
+            router_id=len(self._routers), latency=self.node_router_latency
+        )
         self._routers.append(node_router)
 
         # connect node_router <-> mesh router
@@ -270,6 +270,7 @@ class CustomMesh(SimpleTopology):
         self._ExtLink = ExtLink
         self._Router = Router
 
+        self.node_router_latency = 1 if options.network == "garnet" else 0
         if hasattr(options, "router_link_latency"):
             self._router_link_latency = options.router_link_latency
             self._node_link_latency = options.node_link_latency
@@ -325,9 +326,7 @@ class CustomMesh(SimpleTopology):
                 rni_io_params = check_same(type(n).NoC_Params, rni_io_params)
             else:
                 fatal(
-                    "topologies.CustomMesh: {} not supported".format(
-                        n.__class__.__name__
-                    )
+                    f"topologies.CustomMesh: {n.__class__.__name__} not supported"
                 )
 
         # Create all mesh routers
@@ -420,11 +419,11 @@ class CustomMesh(SimpleTopology):
             if pair_debug:
                 print(c.path())
                 for r in c.addr_ranges:
-                    print("%s" % r)
+                    print(f"{r}")
                 for p in c._pairing:
                     print("\t" + p.path())
                     for r in p.addr_ranges:
-                        print("\t%s" % r)
+                        print(f"\t{r}")
 
         # all must be paired
         for c in all_cache:
@@ -516,8 +515,8 @@ class CustomMesh(SimpleTopology):
                 assert len(c._pairing) == pairing_check
                 print(c.path())
                 for r in c.addr_ranges:
-                    print("%s" % r)
+                    print(f"{r}")
                 for p in c._pairing:
                     print("\t" + p.path())
                     for r in p.addr_ranges:
-                        print("\t%s" % r)
+                        print(f"\t{r}")

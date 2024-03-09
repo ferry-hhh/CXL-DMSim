@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014, 2016-2020, 2022 Arm Limited
+ * Copyright (c) 2009-2014, 2016-2020, 2022-2023 Arm Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -139,8 +139,6 @@ readMPIDR(ArmSystem *arm_sys, ThreadContext *tc)
 {
     const ExceptionLevel current_el = currEL(tc);
 
-    const bool is_secure = isSecureBelowEL3(tc);
-
     switch (current_el) {
       case EL0:
         // Note: in MsrMrs instruction we read the register value before
@@ -150,7 +148,7 @@ readMPIDR(ArmSystem *arm_sys, ThreadContext *tc)
         warn_once("Trying to read MPIDR at EL0\n");
         [[fallthrough]];
       case EL1:
-        if (ArmSystem::haveEL(tc, EL2) && !is_secure)
+        if (EL2Enabled(tc))
             return tc->readMiscReg(MISCREG_VMPIDR_EL2);
         else
             return getMPIDR(arm_sys, tc);
@@ -1347,6 +1345,25 @@ syncVecElemsToRegs(ThreadContext *tc)
         }
         tc->setReg(vecRegClass[ri], &reg);
     }
+}
+
+bool
+fgtEnabled(ThreadContext *tc)
+{
+    return EL2Enabled(tc) && HaveExt(tc, ArmExtension::FEAT_FGT) &&
+        (!ArmSystem::haveEL(tc, EL3) ||
+            static_cast<SCR>(tc->readMiscReg(MISCREG_SCR_EL3)).fgten);
+}
+
+bool
+isHcrxEL2Enabled(ThreadContext *tc)
+{
+    if (!ArmSystem::has(ArmExtension::FEAT_HCX, tc))
+        return false;
+    if (ArmSystem::haveEL(tc, EL3) &&
+        !static_cast<SCR>(tc->readMiscReg(MISCREG_SCR_EL3)).hxen)
+        return false;
+    return EL2Enabled(tc);
 }
 
 } // namespace ArmISA

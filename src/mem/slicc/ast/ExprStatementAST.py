@@ -26,8 +26,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from slicc.ast.StatementAST import StatementAST
 from slicc.ast.LocalVariableAST import LocalVariableAST
+from slicc.ast.StatementAST import StatementAST
 from slicc.symbols import Type
 
 
@@ -37,7 +37,7 @@ class ExprStatementAST(StatementAST):
         self.expr = expr
 
     def __repr__(self):
-        return "[ExprStatementAST: %s]" % (self.expr)
+        return f"[ExprStatementAST: {self.expr}]"
 
     def generate(self, code, return_type, **kwargs):
         actual_type, rcode = self.expr.inline(True, **kwargs)

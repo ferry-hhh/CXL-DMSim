@@ -44,15 +44,16 @@ scons build/RISCV/gem5.opt
 """
 
 import argparse
-from gem5.isas import ISA
-from gem5.utils.requires import requires
-from gem5.resources.resource import Resource
-from gem5.components.memory import SingleChannelDDR3_1600
-from gem5.components.processors.cpu_types import CPUTypes
+
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.no_cache import NoCache
+from gem5.components.memory import SingleChannelDDR3_1600
+from gem5.components.processors.cpu_types import CPUTypes
 from gem5.components.processors.simple_processor import SimpleProcessor
+from gem5.isas import ISA
+from gem5.resources.resource import obtain_resource
 from gem5.simulate.simulator import Simulator
+from gem5.utils.requires import requires
 
 parser = argparse.ArgumentParser()
 
@@ -97,11 +98,11 @@ board = SimpleBoard(
 board.set_se_binary_workload(
     # The `Resource` class reads the `resources.json` file from the gem5
     # resources repository:
-    # https://gem5.googlesource.com/public/gem5-resource.
+    # https://github.com/gem5/gem5-resources.
     # Any resource specified in this file will be automatically retrieved.
     # At the time of writing, this file is a WIP and does not contain all
     # resources. Jira ticket: https://gem5.atlassian.net/browse/GEM5-1096
-    Resource("riscv-hello")
+    obtain_resource("riscv-hello")
 )
 
 # Lastly we run the simulation.

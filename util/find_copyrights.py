@@ -4,9 +4,12 @@ import os
 import re
 import sys
 
-from file_types import lang_type, find_files
+from file_types import (
+    find_files,
+    lang_type,
+)
 
-mode_line = re.compile("(-\*- *mode:.* *-\*-)")
+mode_line = re.compile(r"(-\*- *mode:.* *-\*-)")
 shell_comment = re.compile(r"^\s*#")
 lisp_comment = re.compile(r";")
 cpp_comment = re.compile(r"//")
@@ -103,7 +106,7 @@ def find_copyright_block(lines, lang_type):
                 return
 
     else:
-        raise AttributeError("Could not handle language %s" % lang_type)
+        raise AttributeError(f"Could not handle language {lang_type}")
 
 
 date_range_re = re.compile(r"([0-9]{4})\s*-\s*([0-9]{4})")
@@ -116,7 +119,7 @@ def process_dates(dates):
     for date in dates:
         match = date_range_re.match(date)
         if match:
-            f, l = [int(d) for d in match.groups()]
+            f, l = (int(d) for d in match.groups())
             for i in range(f, l + 1):
                 output.add(i)
         else:
@@ -254,7 +257,7 @@ if __name__ == "__main__":
         elif os.path.isdir(base):
             files += find_files(base)
         else:
-            raise AttributeError("can't access '%s'" % base)
+            raise AttributeError(f"can't access '{base}'")
 
     copyrights = {}
     counts = {}
@@ -273,8 +276,8 @@ if __name__ == "__main__":
         except Exception as e:
             if verbose:
                 if len(e.args) == 1:
-                    e.args = ("%s (%s))" % (e, filename),)
-                print("could not parse %s: %s" % (filename, e))
+                    e.args = (f"{e} ({filename}))",)
+                print(f"could not parse {filename}: {e}")
             continue
 
         for owner, dates, authors, start, end in data:
@@ -290,5 +293,5 @@ if __name__ == "__main__":
 
     for count, dates, owner in sorted(info, reverse=True):
         if show_counts:
-            owner = "%s (%s files)" % (owner, count)
-        print("Copyright (c) %s %s" % (datestr(dates), owner))
+            owner = f"{owner} ({count} files)"
+        print(f"Copyright (c) {datestr(dates)} {owner}")

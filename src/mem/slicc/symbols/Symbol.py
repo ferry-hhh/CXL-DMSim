@@ -44,8 +44,8 @@ class Symbol(PairContainer):
     def __init__(self, symtab, ident, location, pairs=None):
         super().__init__()
 
-        from slicc.util import Location
         from slicc.symbols import SymbolTable
+        from slicc.util import Location
 
         if not isinstance(symtab, SymbolTable):
             raise AttributeError
@@ -64,7 +64,7 @@ class Symbol(PairContainer):
         self.used = False
 
     def __repr__(self):
-        return "[Symbol: %s]" % self.ident
+        return f"[Symbol: {self.ident}]"
 
     def __str__(self):
         return str(self.ident)

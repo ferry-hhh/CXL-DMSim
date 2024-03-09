@@ -36,8 +36,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.params import *
 from m5.objects.ClockedObject import ClockedObject
+from m5.params import *
 
 
 class AbstractMemory(ClockedObject):
@@ -74,3 +74,5 @@ class AbstractMemory(ClockedObject):
     image_file = Param.String(
         "", "Image to load into memory as its initial contents"
     )
+
+    writeable = Param.Bool(True, "Allow writes to this memory")

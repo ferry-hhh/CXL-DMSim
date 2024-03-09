@@ -39,6 +39,7 @@
 import code
 import datetime
 import os
+import runpy
 import socket
 import sys
 
@@ -126,13 +127,13 @@ def parse_options():
     option(
         "--stdout-file",
         metavar="FILE",
-        default="simout",
+        default="simout.txt",
         help="Filename for -r redirection [Default: %default]",
     )
     option(
         "--stderr-file",
         metavar="FILE",
-        default="simerr",
+        default="simerr.txt",
         help="Filename for -e redirection [Default: %default]",
     )
     option(
@@ -184,6 +185,16 @@ def parse_options():
         setattr(parser.values, option.dest, (value, extra_args))
 
     option(
+        "-m",
+        type=str,
+        help="run library module as a script (terminates option list)",
+        default="",
+        metavar="mod",
+        action="callback",
+        callback=collect_args,
+    )
+
+    option(
         "-c",
         type=str,
         help="program passed in as string (terminates option list)",
@@ -191,6 +202,21 @@ def parse_options():
         metavar="cmd",
         action="callback",
         callback=collect_args,
+    )
+
+    option(
+        "-P",
+        action="store_true",
+        default=False,
+        help="Don't prepend the script directory to the system path. "
+        "Mimics Python 3's `-P` option.",
+    )
+
+    option(
+        "-s",
+        action="store_true",
+        help="IGNORED, only for compatibility with python. don't"
+        "add user site directory to sys.path; also PYTHONNOUSERSITE",
     )
 
     # Statistics options
@@ -276,6 +302,13 @@ def parse_options():
         " to be compressed automatically [Default: %default]",
     )
     option(
+        "--debug-activate",
+        metavar="EXPR[,EXPR]",
+        action="append",
+        split=",",
+        help="Activate EXPR sim objects",
+    )
+    option(
         "--debug-ignore",
         metavar="EXPR",
         action="append",
@@ -336,6 +369,8 @@ def interact(scope):
 def _check_tracing():
     import _m5.core
 
+    from .util import fatal
+
     if _m5.core.TRACING_ON:
         return
 
@@ -344,18 +379,24 @@ def _check_tracing():
 
 def main():
     import m5
+    from m5.util.terminal_formatter import TerminalFormatter
+
     import _m5.core
 
-    from . import core
-    from . import debug
-    from . import defines
-    from . import event
-    from . import info
-    from . import stats
-    from . import trace
-
-    from .util import inform, fatal, panic, isInteractive
-    from m5.util.terminal_formatter import TerminalFormatter
+    from . import (
+        core,
+        debug,
+        defines,
+        event,
+        info,
+        stats,
+        trace,
+    )
+    from .util import (
+        inform,
+        isInteractive,
+        panic,
+    )
 
     options, arguments = parse_options()
 
@@ -399,14 +440,14 @@ def main():
         done = True
         print("Build information:")
         print()
-        print("gem5 version %s" % defines.gem5Version)
-        print("compiled %s" % defines.compileDate)
+        print(f"gem5 version {defines.gem5Version}")
+        print(f"compiled {defines.compileDate}")
         print("build options:")
         keys = list(defines.buildEnv.keys())
         keys.sort()
         for key in keys:
             val = defines.buildEnv[key]
-            print("    %s = %s" % (key, val))
+            print(f"    {key} = {val}")
         print()
 
     if options.copyright:
@@ -470,27 +511,42 @@ def main():
         print(brief_copyright)
         print()
 
-        print("gem5 version %s" % _m5.core.gem5Version)
-        print("gem5 compiled %s" % _m5.core.compileDate)
+        print(f"gem5 version {_m5.core.gem5Version}")
+        print(f"gem5 compiled {_m5.core.compileDate}")
 
         print(
-            "gem5 started %s" % datetime.datetime.now().strftime("%b %e %Y %X")
+            f"gem5 started {datetime.datetime.now().strftime('%b %e %Y %X')}"
         )
         print(
             "gem5 executing on %s, pid %d"
             % (socket.gethostname(), os.getpid())
         )
 
-        # in Python 3 pipes.quote() is moved to shlex.quote()
-        import pipes
+        def quote(arg: str) -> str:
+            """Quotes a string for printing in a shell. In addition to Unix,
+            this is designed to handle the problematic Windows cases where
+            'shlex.quote' doesn't work"""
 
-        print("command line:", " ".join(map(pipes.quote, sys.argv)))
+            if os.name == "nt" and os.sep == "\\":
+                # If a Windows machine, we manually quote the string.
+                arg = arg.replace('"', '\\"')
+                if re.search(r"\s", args):
+                    # We quote args which have whitespace.
+                    arg = '"' + arg + '"'
+                return arg
+            import shlex
+
+            return shlex.quote(arg)
+
+        print("command line:", " ".join(map(quote, sys.argv)))
         print()
 
     # check to make sure we can find the listed script
-    if not options.c and (not arguments or not os.path.isfile(arguments[0])):
+    if not (options.c or options.m) and (
+        not arguments or not os.path.isfile(arguments[0])
+    ):
         if arguments and not os.path.isfile(arguments[0]):
-            print("Script %s not found" % arguments[0])
+            print(f"Script {arguments[0]} not found")
 
         options.usage(2)
 
@@ -514,7 +570,7 @@ def main():
     elif options.listener_mode == "on":
         pass
     else:
-        panic("Unhandled listener mode: %s" % options.listener_mode)
+        panic(f"Unhandled listener mode: {options.listener_mode}")
 
     if not options.allow_remote_connections:
         m5.listenersLoopbackOnly()
@@ -534,7 +590,7 @@ def main():
                 off = True
 
             if flag not in debug.flags:
-                print("invalid debug flag '%s'" % flag, file=sys.stderr)
+                print(f"invalid debug flag '{flag}'", file=sys.stderr)
                 sys.exit(1)
 
             if off:
@@ -556,45 +612,61 @@ def main():
 
     trace.output(options.debug_file)
 
+    for activate in options.debug_activate:
+        _check_tracing()
+        trace.activate(activate)
+
     for ignore in options.debug_ignore:
         _check_tracing()
         trace.ignore(ignore)
 
     sys.argv = arguments
 
-    if options.c:
-        filedata = options.c[0]
-        filecode = compile(filedata, "<string>", "exec")
-        sys.argv = ["-c"] + options.c[1]
-        scope = {"__name__": "__m5_main__"}
+    if options.m:
+        sys.argv = [options.m[0]] + options.m[1]
+        runpy.run_module(options.m[0], run_name="__m5_main__")
     else:
-        sys.path = [os.path.dirname(sys.argv[0])] + sys.path
-        filename = sys.argv[0]
-        filedata = open(filename, "r").read()
-        filecode = compile(filedata, filename, "exec")
-        scope = {"__file__": filename, "__name__": "__m5_main__"}
+        if options.c:
+            filedata = options.c[0]
+            filecode = compile(filedata, "<string>", "exec")
+            sys.argv = ["-c"] + options.c[1]
+            scope = {"__name__": "__m5_main__"}
+        else:
+            # If `-P` was used (`options.P == true`), don't prepend the script
+            # directory to the `sys.path`. This mimics Python 3's `-P` option
+            # (https://docs.python.org/3/using/cmdline.html#cmdoption-P).
+            if not options.P:
+                sys.path = [os.path.dirname(sys.argv[0])] + sys.path
+            filename = sys.argv[0]
+            with open(filename, "rb") as fd:
+                # Handle config files with unicode characters
+                filedata = fd.read().decode("utf-8")
+            filecode = compile(filedata, filename, "exec")
+            scope = {"__file__": filename, "__name__": "__m5_main__"}
 
-    # if pdb was requested, execfile the thing under pdb, otherwise,
-    # just do the execfile normally
-    if options.pdb:
-        import pdb
-        import traceback
+        # if pdb was requested, execfile the thing under pdb, otherwise,
+        # just do the execfile normally
+        if options.pdb:
+            import pdb
+            import traceback
 
-        pdb = pdb.Pdb()
-        try:
-            pdb.run(filecode, scope)
-        except SystemExit:
-            print("The program exited via sys.exit(). Exit status: ", end=" ")
-            print(sys.exc_info()[1])
-        except:
-            traceback.print_exc()
-            print("Uncaught exception. Entering post mortem debugging")
-            t = sys.exc_info()[2]
-            while t.tb_next is not None:
-                t = t.tb_next
-                pdb.interaction(t.tb_frame, t)
-    else:
-        exec(filecode, scope)
+            pdb = pdb.Pdb()
+            try:
+                pdb.run(filecode, scope)
+            except SystemExit:
+                print(
+                    "The program exited via sys.exit(). Exit status: ", end=" "
+                )
+                print(sys.exc_info()[1])
+            except:
+                traceback.print_exc()
+                print("Uncaught exception. Entering post mortem debugging")
+                t = sys.exc_info()[2]
+                while t.tb_next is not None:
+                    t = t.tb_next
+                    pdb.interaction(t.tb_frame, t)
+        else:
+            exec(filecode, scope)
 
     # once the script is done
     if options.interactive:

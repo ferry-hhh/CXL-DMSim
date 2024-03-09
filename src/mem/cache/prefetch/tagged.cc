@@ -38,7 +38,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -50,7 +49,8 @@ Tagged::Tagged(const TaggedPrefetcherParams &p)
 
 void
 Tagged::calculatePrefetch(const PrefetchInfo &pfi,
-    std::vector<AddrPriority> &addresses)
+    std::vector<AddrPriority> &addresses,
+    const CacheAccessor &cache)
 {
     Addr blkAddr = blockAddress(pfi.getAddr());
 

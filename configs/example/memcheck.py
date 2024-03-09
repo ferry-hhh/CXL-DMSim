@@ -260,6 +260,7 @@ system.memchecker = MemChecker()
 # For each level, track the next subsys index to use
 next_subsys_index = [0] * (len(cachespec) + 1)
 
+
 # Recursive function to create a sub-tree of the cache and tester
 # hierarchy
 def make_cache_level(ncaches, prototypes, level, next_cache):
@@ -330,7 +331,7 @@ def make_cache_level(ncaches, prototypes, level, next_cache):
 make_cache_level(cachespec, cache_proto, len(cachespec), None)
 
 # Connect the lowest level crossbar to the memory
-last_subsys = getattr(system, "l%dsubsys0" % len(cachespec))
+last_subsys = getattr(system, f"l{len(cachespec)}subsys0")
 last_subsys.xbar.mem_side_ports = system.physmem.port
 last_subsys.xbar.point_of_coherency = True
 

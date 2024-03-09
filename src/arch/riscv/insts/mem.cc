@@ -32,7 +32,6 @@
 #include <sstream>
 #include <string>
 
-#include "arch/riscv/insts/bitfields.hh"
 #include "arch/riscv/insts/static_inst.hh"
 #include "arch/riscv/utility.hh"
 #include "cpu/static_inst.hh"
@@ -56,8 +55,13 @@ std::string
 Store::generateDisassembly(Addr pc, const loader::SymbolTable *symtab) const
 {
     std::stringstream ss;
-    ss << mnemonic << ' ' << registerName(srcRegIdx(1)) << ", " <<
-        offset << '(' << registerName(srcRegIdx(0)) << ')';
+    if (_numSrcRegs == 1) {
+        ss << mnemonic << ' ' << offset << '(' << registerName(srcRegIdx(0))
+           << ")";
+    } else {
+        ss << mnemonic << ' ' << registerName(srcRegIdx(1)) << ", " <<
+            offset << '(' << registerName(srcRegIdx(0)) << ')';
+    }
     return ss.str();
 }
 

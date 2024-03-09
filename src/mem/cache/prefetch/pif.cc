@@ -37,7 +37,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -199,7 +198,8 @@ PIF::notifyRetiredInst(const Addr pc)
 
 void
 PIF::calculatePrefetch(const PrefetchInfo &pfi,
-    std::vector<AddrPriority> &addresses)
+    std::vector<AddrPriority> &addresses,
+    const CacheAccessor &cache)
 {
     if (!pfi.hasPC()) {
         return;

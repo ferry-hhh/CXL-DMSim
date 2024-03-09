@@ -601,7 +601,7 @@ class BaseKvmCPU : public BaseCPU
 
       public:
         KVMCpuPort(const std::string &_name, BaseKvmCPU *_cpu)
-            : RequestPort(_name, _cpu), cpu(_cpu), activeMMIOReqs(0)
+            : RequestPort(_name), cpu(_cpu), activeMMIOReqs(0)
         { }
         /**
          * Interface to send Atomic or Timing IO request.  Assumes that the pkt
@@ -652,6 +652,9 @@ class BaseKvmCPU : public BaseCPU
      * the KVM vCPU state upon the next call to kvmRun().
      */
     bool kvmStateDirty;
+
+    /** True if using perf; False otherwise*/
+    bool usePerf;
 
     /** KVM internal ID of the vCPU */
     long vcpuID;
@@ -763,7 +766,7 @@ class BaseKvmCPU : public BaseCPU
      * PerfKvmTimer (see perfControlledByTimer) to trigger exits from
      * KVM.
      */
-    PerfKvmCounter hwCycles;
+    std::unique_ptr<PerfKvmCounter> hwCycles;
 
     /**
      * Guest instruction counter.
@@ -776,7 +779,7 @@ class BaseKvmCPU : public BaseCPU
      * @see setupInstBreak
      * @see scheduleInstStop
      */
-    PerfKvmCounter hwInstructions;
+    std::unique_ptr<PerfKvmCounter> hwInstructions;
 
     /**
      * Does the runTimer control the performance counters?
@@ -804,7 +807,6 @@ class BaseKvmCPU : public BaseCPU
     struct StatGroup : public statistics::Group
     {
         StatGroup(statistics::Group *parent);
-        statistics::Scalar committedInsts;
         statistics::Scalar numVMExits;
         statistics::Scalar numVMHalfEntries;
         statistics::Scalar numExitSignal;

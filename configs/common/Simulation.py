@@ -41,8 +41,10 @@ import sys
 from os import getcwd
 from os.path import join as joinpath
 
-from common import CpuConfig
-from common import ObjectList
+from common import (
+    CpuConfig,
+    ObjectList,
+)
 
 import m5
 from m5.defines import buildEnv
@@ -71,7 +73,7 @@ def setCPUClass(options):
     TmpClass, test_mem_mode = getCPUClass(options.cpu_type)
     CPUClass = None
     if TmpClass.require_caches() and not options.caches and not options.ruby:
-        fatal("%s must be used with caches" % options.cpu_type)
+        fatal(f"{options.cpu_type} must be used with caches")
 
     if options.checkpoint_restore != None:
         if options.restore_with_cpu != options.cpu_type:
@@ -79,7 +81,10 @@ def setCPUClass(options):
             TmpClass, test_mem_mode = getCPUClass(options.restore_with_cpu)
     elif options.fast_forward:
         CPUClass = TmpClass
-        TmpClass = AtomicSimpleCPU
+        CPUISA = ObjectList.cpu_list.get_isa(options.cpu_type)
+        TmpClass = getCPUClass(
+            CpuConfig.isa_string_map[CPUISA] + "AtomicSimpleCPU"
+        )
         test_mem_mode = "atomic"
 
     # Ruby only supports atomic accesses in noncaching mode
@@ -128,9 +133,12 @@ def findCptDir(options, cptdir, testsys):
     the appropriate directory.
     """
 
-    from os.path import isdir, exists
-    from os import listdir
     import re
+    from os import listdir
+    from os.path import (
+        exists,
+        isdir,
+    )
 
     if not isdir(cptdir):
         fatal("checkpoint dir %s does not exist!", cptdir)
@@ -144,7 +152,7 @@ def findCptDir(options, cptdir, testsys):
                 fatal("Unable to find simpoint")
             inst += int(testsys.cpu[0].workload[0].simpoint)
 
-        checkpoint_dir = joinpath(cptdir, "cpt.%s.%s" % (options.bench, inst))
+        checkpoint_dir = joinpath(cptdir, f"cpt.{options.bench}.{inst}")
         if not exists(checkpoint_dir):
             fatal("Unable to find checkpoint directory %s", checkpoint_dir)
 
@@ -153,8 +161,8 @@ def findCptDir(options, cptdir, testsys):
         # Assumes that the checkpoint dir names are formatted as follows:
         dirs = listdir(cptdir)
         expr = re.compile(
-            "cpt\.simpoint_(\d+)_inst_(\d+)"
-            + "_weight_([\d\.e\-]+)_interval_(\d+)_warmup_(\d+)"
+            r"cpt\.simpoint_(\d+)_inst_(\d+)"
+            + r"_weight_([\d\.e\-]+)_interval_(\d+)_warmup_(\d+)"
         )
         cpts = []
         for dir in dirs:
@@ -190,7 +198,7 @@ def findCptDir(options, cptdir, testsys):
 
     else:
         dirs = listdir(cptdir)
-        expr = re.compile("cpt\.([0-9]+)")
+        expr = re.compile(r"cpt\.([0-9]+)")
         cpts = []
         for dir in dirs:
             match = expr.match(dir)
@@ -204,7 +212,7 @@ def findCptDir(options, cptdir, testsys):
             fatal("Checkpoint %d not found", cpt_num)
 
         cpt_starttick = int(cpts[cpt_num - 1])
-        checkpoint_dir = joinpath(cptdir, "cpt.%s" % cpts[cpt_num - 1])
+        checkpoint_dir = joinpath(cptdir, f"cpt.{cpts[cpt_num - 1]}")
 
     return cpt_starttick, checkpoint_dir
 
@@ -220,7 +228,7 @@ def scriptCheckpoints(options, maxtick, cptdir):
         print("Creating checkpoint at inst:%d" % (checkpoint_inst))
         exit_event = m5.simulate()
         exit_cause = exit_event.getCause()
-        print("exit cause = %s" % exit_cause)
+        print(f"exit cause = {exit_cause}")
 
         # skip checkpoint instructions should they exist
         while exit_cause == "checkpoint":
@@ -325,7 +333,7 @@ def parseSimpointAnalysisFile(options, testsys):
         line = simpoint_file.readline()
         if not line:
             break
-        m = re.match("(\d+)\s+(\d+)", line)
+        m = re.match(r"(\d+)\s+(\d+)", line)
         if m:
             interval = int(m.group(1))
         else:
@@ -334,7 +342,7 @@ def parseSimpointAnalysisFile(options, testsys):
         line = weight_file.readline()
         if not line:
             fatal("not enough lines in simpoint weight file!")
-        m = re.match("([0-9\.e\-]+)\s+(\d+)", line)
+        m = re.match(r"([0-9\.e\-]+)\s+(\d+)", line)
         if m:
             weight = float(m.group(1))
         else:
@@ -549,10 +557,10 @@ def run(options, root, testsys, cpu_class):
     if options.repeat_switch:
         switch_class = getCPUClass(options.cpu_type)[0]
         if switch_class.require_caches() and not options.caches:
-            print("%s: Must be used with caches" % str(switch_class))
+            print(f"{str(switch_class)}: Must be used with caches")
             sys.exit(1)
         if not switch_class.support_take_over():
-            print("%s: CPU switching not supported" % str(switch_class))
+            print(f"{str(switch_class)}: CPU switching not supported")
             sys.exit(1)
 
         repeat_switch_cpus = [
@@ -740,9 +748,9 @@ def run(options, root, testsys, cpu_class):
             )
             exit_event = m5.simulate()
         else:
-            print("Switch at curTick count:%s" % str(10000))
+            print(f"Switch at curTick count:{str(10000)}")
             exit_event = m5.simulate(10000)
-        print("Switched CPUS @ tick %s" % (m5.curTick()))
+        print(f"Switched CPUS @ tick {m5.curTick()}")
 
         m5.switchCpus(testsys, switch_cpu_list)
 
@@ -757,7 +765,7 @@ def run(options, root, testsys, cpu_class):
                 exit_event = m5.simulate()
             else:
                 exit_event = m5.simulate(options.standard_switch)
-            print("Switching CPUS @ tick %s" % (m5.curTick()))
+            print(f"Switching CPUS @ tick {m5.curTick()}")
             print(
                 "Simulation ends instruction count:%d"
                 % (testsys.switch_cpus_1[0].max_insts_any_thread)
@@ -771,7 +779,6 @@ def run(options, root, testsys, cpu_class):
     if (
         options.take_checkpoints or options.take_simpoint_checkpoints
     ) and options.checkpoint_restore:
-
         if m5.options.outdir:
             cptdir = m5.options.outdir
         else:

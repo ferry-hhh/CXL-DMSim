@@ -27,7 +27,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from slicc.ast.ExprAST import ExprAST
-from slicc.symbols import Type, Var
+from slicc.symbols import (
+    Type,
+    Var,
+)
 
 
 class VarExprAST(ExprAST):
@@ -36,7 +39,7 @@ class VarExprAST(ExprAST):
         self._var = var
 
     def __repr__(self):
-        return "[VarExprAST: %r]" % self._var
+        return f"[VarExprAST: {self._var!r}]"
 
     @property
     def name(self):

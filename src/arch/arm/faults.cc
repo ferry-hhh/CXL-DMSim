@@ -503,9 +503,6 @@ ArmFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
 void
 ArmFault::invoke32(ThreadContext *tc, const StaticInstPtr &inst)
 {
-    if (vectorCatch(tc, inst))
-        return;
-
     // ARMv7 (ARM ARM issue C B1.9)
     bool have_security = ArmSystem::haveEL(tc, EL3);
 
@@ -568,7 +565,6 @@ ArmFault::invoke32(ThreadContext *tc, const StaticInstPtr &inst)
         cpsr.i = 1;
     }
     cpsr.it1 = cpsr.it2 = 0;
-    cpsr.j = 0;
     cpsr.pan = span ? 1 : saved_cpsr.pan;
     tc->setMiscReg(MISCREG_CPSR, cpsr);
 
@@ -625,8 +621,6 @@ ArmFault::invoke32(ThreadContext *tc, const StaticInstPtr &inst)
     PCState pc(new_pc);
     pc.thumb(cpsr.t);
     pc.nextThumb(pc.thumb());
-    pc.jazelle(cpsr.j);
-    pc.nextJazelle(pc.jazelle());
     pc.aarch64(!cpsr.width);
     pc.nextAArch64(!cpsr.width);
     pc.illegalExec(false);
@@ -669,7 +663,6 @@ ArmFault::invoke64(ThreadContext *tc, const StaticInstPtr &inst)
         // Force some bitfields to 0
         spsr.q = 0;
         spsr.it1 = 0;
-        spsr.j = 0;
         spsr.ge = 0;
         spsr.it2 = 0;
         spsr.t = 0;
@@ -727,20 +720,6 @@ ArmFault::invoke64(ThreadContext *tc, const StaticInstPtr &inst)
     // Save exception syndrome
     if ((nextMode() != MODE_IRQ) && (nextMode() != MODE_FIQ))
         setSyndrome(tc, getSyndromeReg64());
-}
-
-bool
-ArmFault::vectorCatch(ThreadContext *tc, const StaticInstPtr &inst)
-{
-    SelfDebug *sd = ArmISA::ISA::getSelfDebug(tc);
-    VectorCatch* vc = sd->getVectorCatch(tc);
-    if (vc && !vc->isVCMatch()) {
-        Fault fault = sd->testVectorCatch(tc, 0x0, this);
-        if (fault != NoFault)
-            fault->invoke(tc, inst);
-        return true;
-    }
-    return false;
 }
 
 ArmStaticInst *

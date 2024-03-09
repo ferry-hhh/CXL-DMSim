@@ -26,15 +26,14 @@
 
 import optparse
 import sys
-
 from optparse import *
 
 
-class nodefault(object):
+class nodefault:
     pass
 
 
-class splitter(object):
+class splitter:
     def __init__(self, split):
         self.split = split
 
@@ -92,8 +91,8 @@ class OptionParser(dict):
         """add a boolean option called --name and --no-name.
         Display help depending on which is the default"""
 
-        tname = "--%s" % name
-        fname = "--no-%s" % name
+        tname = f"--{name}"
+        fname = f"--no-{name}"
         dest = name.replace("-", "_")
         if default:
             thelp = optparse.SUPPRESS_HELP

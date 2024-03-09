@@ -38,18 +38,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from subprocess import call
-from platform import machine
+import os
+import sys
+from argparse import (
+    ArgumentDefaultsHelpFormatter,
+    ArgumentParser,
+)
 from distutils import spawn
 from glob import glob
-
-import sys
-import os
+from platform import machine
+from subprocess import call
 
 
 def run_cmd(explanation, working_dir, cmd, stdout=None):
-    print("Running phase '%s'" % explanation)
+    print(f"Running phase '{explanation}'")
     sys.stdout.flush()
 
     # some of the commands need $PWD to be properly set
@@ -296,11 +298,11 @@ def xen():
         [
             "./configure",
             "--host=aarch64-linux-gnu",
-            "--with-kernel-dir={}".format(linux_dir),
-            "--with-dtb={}".format(dtb_bin),
-            "--with-cmdline='{}'".format(linux_cmdline),
-            "--with-xen-cmdline='{}'".format(xen_cmdline),
-            "--with-xen={}".format(os.path.join(xen_dir, "xen", "xen")),
+            f"--with-kernel-dir={linux_dir}",
+            f"--with-dtb={dtb_bin}",
+            f"--with-cmdline='{linux_cmdline}'",
+            f"--with-xen-cmdline='{xen_cmdline}'",
+            f"--with-xen={os.path.join(xen_dir, 'xen', 'xen')}",
             "--enable-psci",
             "--enable-gicv3",
         ],
@@ -372,11 +374,11 @@ parser.add_argument(
 args = parser.parse_args()
 
 if not os.path.isdir(args.dest_dir):
-    print("Error: %s is not a directory." % args.dest_dir)
+    print(f"Error: {args.dest_dir} is not a directory.")
     sys.exit(1)
 
 if not os.path.isdir(args.gem5_dir):
-    print("Error: %s is not a directory." % args.gem5_dir)
+    print(f"Error: {args.gem5_dir} is not a directory.")
     sys.exit(1)
 
 if machine() != "x86_64":
@@ -386,13 +388,13 @@ if machine() != "x86_64":
 binaries_dir = args.dest_dir + "/binaries"
 
 if os.path.exists(binaries_dir):
-    print("Error: %s already exists." % binaries_dir)
+    print(f"Error: {binaries_dir} already exists.")
     sys.exit(1)
 
 revisions_dir = args.dest_dir + "/revisions"
 
 if os.path.exists(revisions_dir):
-    print("Error: %s already exists." % revisions_dir)
+    print(f"Error: {revisions_dir} already exists.")
     sys.exit(1)
 
 os.mkdir(binaries_dir)
@@ -413,6 +415,6 @@ binaries = args.fs_binaries if args.fs_binaries else list(all_binaries.keys())
 for fs_binary in binaries:
     all_binaries[fs_binary]()
 
-print("Done! All the generated files can be found in %s" % binaries_dir)
+print(f"Done! All the generated files can be found in {binaries_dir}")
 
 sys.exit(0)

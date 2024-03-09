@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012-2019, 2021-2022 Arm Limited
+ * Copyright (c) 2010, 2012-2019, 2021-2023 Arm Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -62,7 +62,7 @@ using namespace ArmISA;
 TableWalker::TableWalker(const Params &p)
     : ClockedObject(p),
       requestorId(p.sys->getRequestorId(this)),
-      port(new Port(this, requestorId)),
+      port(new Port(*this, requestorId)),
       isStage2(p.is_stage2), tlb(NULL),
       currState(NULL), pending(false),
       numSquashable(p.num_squash_per_cycle),
@@ -138,10 +138,11 @@ TableWalker::WalkerState::WalkerState() :
 {
 }
 
-TableWalker::Port::Port(TableWalker *_walker, RequestorID id)
-  : QueuedRequestPort(_walker->name() + ".port", _walker,
-        reqQueue, snoopRespQueue),
-    reqQueue(*_walker, *this), snoopRespQueue(*_walker, *this),
+TableWalker::Port::Port(TableWalker& _walker, RequestorID id)
+  : QueuedRequestPort(_walker.name() + ".port", reqQueue, snoopRespQueue),
+    owner{_walker},
+    reqQueue(_walker, *this),
+    snoopRespQueue(_walker, *this),
     requestorId(id)
 {
 }
@@ -2304,6 +2305,7 @@ TableWalker::insertPartialTableEntry(LongDescriptor &descriptor)
     te.asid           = currState->asid;
     te.vmid           = currState->vmid;
     te.N              = descriptor.offsetBits();
+    te.tg             = descriptor.grainSize;
     te.vpn            = currState->vaddr >> te.N;
     te.size           = (1ULL << te.N) - 1;
     te.pfn            = descriptor.nextTableAddr();
@@ -2377,6 +2379,7 @@ TableWalker::insertTableEntry(DescriptorBase &descriptor, bool long_descriptor)
         LongDescriptor l_descriptor =
             dynamic_cast<LongDescriptor &>(descriptor);
 
+        te.tg = l_descriptor.grainSize;
         te.xn |= currState->xnTable;
         te.pxn = currState->pxnTable || l_descriptor.pxn();
         if (isStage2) {

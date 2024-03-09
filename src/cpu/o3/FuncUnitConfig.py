@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017 ARM Limited
+# Copyright (c) 2010, 2017, 2020 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -36,11 +36,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.SimObject import SimObject
 from m5.defines import buildEnv
-from m5.params import *
-
 from m5.objects.FuncUnit import *
+from m5.params import *
+from m5.SimObject import SimObject
 
 
 class IntALU(FUDesc):
@@ -87,6 +86,7 @@ class SIMD_Unit(FUDesc):
         OpDesc(opClass="SimdMisc"),
         OpDesc(opClass="SimdMult"),
         OpDesc(opClass="SimdMultAcc"),
+        OpDesc(opClass="SimdMatMultAcc"),
         OpDesc(opClass="SimdShift"),
         OpDesc(opClass="SimdShiftAcc"),
         OpDesc(opClass="SimdDiv"),
@@ -99,6 +99,7 @@ class SIMD_Unit(FUDesc):
         OpDesc(opClass="SimdFloatMisc"),
         OpDesc(opClass="SimdFloatMult"),
         OpDesc(opClass="SimdFloatMultAcc"),
+        OpDesc(opClass="SimdFloatMatMultAcc"),
         OpDesc(opClass="SimdFloatSqrt"),
         OpDesc(opClass="SimdReduceAdd"),
         OpDesc(opClass="SimdReduceAlu"),

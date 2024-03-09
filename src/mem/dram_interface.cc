@@ -579,7 +579,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.readBursts++;
         if (row_hit)
             stats.readRowHits++;
-        stats.bytesRead += burstSize;
+        stats.dramBytesRead += burstSize;
         stats.perBankRdBursts[mem_pkt->bankId]++;
 
         // Update latency stats
@@ -608,7 +608,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.writeBursts++;
         if (row_hit)
             stats.writeRowHits++;
-        stats.bytesWritten += burstSize;
+        stats.dramBytesWritten += burstSize;
         stats.perBankWrBursts[mem_pkt->bankId]++;
 
     }
@@ -1068,13 +1068,14 @@ DRAMInterface::minBankPrep(const MemPacketQueue& queue,
 
                 // latest Tick for which ACT can occur without
                 // incurring additoinal delay on the data bus
-                const Tick tRCD = ctrl->inReadBusState(false) ?
-                                                 tRCD_RD : tRCD_WR;
+                const Tick tRCD = ctrl->inReadBusState(false, this) ?
+                                                tRCD_RD : tRCD_WR;
                 const Tick hidden_act_max =
                             std::max(min_col_at - tRCD, curTick());
 
                 // When is the earliest the R/W burst can issue?
-                const Tick col_allowed_at = ctrl->inReadBusState(false) ?
+                const Tick col_allowed_at = ctrl->inReadBusState(false,
+                                              this) ?
                                               ranks[i]->banks[j].rdAllowedAt :
                                               ranks[i]->banks[j].wrAllowedAt;
                 Tick col_at = std::max(col_allowed_at, act_at + tRCD);
@@ -1180,10 +1181,10 @@ bool
 DRAMInterface::Rank::isQueueEmpty() const
 {
     // check commmands in Q based on current bus direction
-    bool no_queued_cmds = (dram.ctrl->inReadBusState(true) &&
-                          (readEntries == 0))
-                       || (dram.ctrl->inWriteBusState(true) &&
-                          (writeEntries == 0));
+    bool no_queued_cmds = (dram.ctrl->inReadBusState(true, &(this->dram))
+                          && (readEntries == 0)) ||
+                          (dram.ctrl->inWriteBusState(true, &(this->dram))
+                          && (writeEntries == 0));
     return no_queued_cmds;
 }
 
@@ -1669,7 +1670,7 @@ DRAMInterface::Rank::processPowerEvent()
         // completed refresh event, ensure next request is scheduled
         if (!(dram.ctrl->requestEventScheduled(dram.pseudoChannel))) {
             DPRINTF(DRAM, "Scheduling next request after refreshing"
-                           " rank %d\n", rank);
+                           " rank %d, PC %d \n", rank, dram.pseudoChannel);
             dram.ctrl->restartScheduler(curTick(), dram.pseudoChannel);
         }
     }
@@ -1831,7 +1832,8 @@ DRAMInterface::Rank::resetStats() {
 bool
 DRAMInterface::Rank::forceSelfRefreshExit() const {
     return (readEntries != 0) ||
-           (dram.ctrl->inWriteBusState(true) && (writeEntries != 0));
+           (dram.ctrl->inWriteBusState(true, &(this->dram))
+            && (writeEntries != 0));
 }
 
 void
@@ -1883,9 +1885,9 @@ DRAMInterface::DRAMStats::DRAMStats(DRAMInterface &_dram)
 
     ADD_STAT(bytesPerActivate, statistics::units::Byte::get(),
              "Bytes accessed per row activation"),
-    ADD_STAT(bytesRead, statistics::units::Byte::get(),
+    ADD_STAT(dramBytesRead, statistics::units::Byte::get(),
             "Total bytes read"),
-    ADD_STAT(bytesWritten, statistics::units::Byte::get(),
+    ADD_STAT(dramBytesWritten, statistics::units::Byte::get(),
             "Total bytes written"),
 
     ADD_STAT(avgRdBW, statistics::units::Rate<
@@ -1946,8 +1948,8 @@ DRAMInterface::DRAMStats::regStats()
     readRowHitRate = (readRowHits / readBursts) * 100;
     writeRowHitRate = (writeRowHits / writeBursts) * 100;
 
-    avgRdBW = (bytesRead / 1000000) / simSeconds;
-    avgWrBW = (bytesWritten / 1000000) / simSeconds;
+    avgRdBW = (dramBytesRead / 1000000) / simSeconds;
+    avgWrBW = (dramBytesWritten / 1000000) / simSeconds;
     peakBW = (sim_clock::Frequency / dram.burstDelay()) *
               dram.bytesPerBurst() / 1000000;
 

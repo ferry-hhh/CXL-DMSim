@@ -34,7 +34,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-class Point(object):
+class Point:
     """2D point coordinates/size type"""
 
     def __init__(self, x, y):
@@ -60,10 +60,10 @@ class Point(object):
         return (self.x, self.y)
 
     def __str__(self):
-        return "Point(%f,%f)" % (self.x, self.y)
+        return f"Point({self.x:f},{self.y:f})"
 
     def __repr__(self):
-        return "Point(%f,%f)" % (self.x, self.y)
+        return f"Point({self.x:f},{self.y:f})"
 
     def is_within_box(self, box):
         """Is this point inside the (centre, size) box box"""

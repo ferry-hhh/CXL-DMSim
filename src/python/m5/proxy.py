@@ -45,7 +45,7 @@
 import copy
 
 
-class BaseProxy(object):
+class BaseProxy:
     def __init__(self, search_self, search_up):
         self._search_self = search_self
         self._search_up = search_up
@@ -63,7 +63,7 @@ class BaseProxy(object):
     def __setattr__(self, attr, value):
         if not attr.startswith("_"):
             raise AttributeError(
-                "cannot set attribute '%s' on proxy object" % attr
+                f"cannot set attribute '{attr}' on proxy object"
             )
         super().__setattr__(attr, value)
 
@@ -234,7 +234,7 @@ class AttrProxy(BaseProxy):
         p = self._attr
         for m in self._modifiers:
             if isinstance(m, str):
-                p += ".%s" % m
+                p += f".{m}"
             elif isinstance(m, int):
                 p += "[%d]" % m
             else:
@@ -272,7 +272,7 @@ def isproxy(obj):
     return False
 
 
-class ProxyFactory(object):
+class ProxyFactory:
     def __init__(self, search_self, search_up):
         self.search_self = search_self
         self.search_up = search_up

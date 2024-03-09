@@ -1,3 +1,289 @@
+# Version 23.1
+
+gem5 Version 23.1 is our first release where the development has been on GitHub.
+During this release, there have been 362 pull requests merged which comprise 416 commits with 51 unique contributors.
+
+## Significant API and user-facing changes
+
+### The gem5 build can is now configured with `kconfig`
+
+- Most gem5 builds without customized options (excluding double dash options) (e.g. , build/X86/gem5.opt) are backwards compatible and require no changes to your current workflows.
+- All of the default builds in `build_opts` are unchanged and still available.
+- However, if you want to specialize your build. For example, use customized ruby protocol. The command `scons PROTOCOL=<PROTOCAL_NAME> build/ALL/gem5.opt` will not work anymore. you now have to use `scons <kconfig command>` to update the ruby protocol as example. The double dash options (`--without-tcmalloc`, `--with-asan` and so on) are still continue to work as normal.
+- For more details refer to the documentation here: [kconfig documentation](https://www.gem5.org/documentation/general_docs/kconfig_build_system/)
+
+### Standard library improvements
+
+#### `WorkloadResource` added to resource specialization
+
+- The `Workload` and `CustomWorkload` classes are now deprecated. They have been transformed into wrappers for the `obtain_resource` and `WorkloadResource` classes in `resource.py`, respectively.
+- Code utilizing the older API will continue to function as expected but will trigger a warning message. To update code using the `Workload` class, change the call from `Workload(id='resource_id', resource_version='1.0.0')` to `obtain_resource(id='resource_id', resource_version='1.0.0')`. Similarly, to update code using the `CustomWorkload` class, change the call from `CustomWorkload(function=func, parameters=params)` to `WorkloadResource(function=func, parameters=params)`.
+- Workload resources in gem5 can now be directly acquired using the `obtain_resource` function, just like other resources.
+
+#### Introducing Suites
+
+Suites is a new category of resource being introduced in gem5. Documentation of suites can be found here: [suite documentation](https://www.gem5.org/documentation/gem5-stdlib/suites).
+
+#### Other API changes
+
+- All resource object now have their own `id` and `category`. Each resource class has its own `__str__()` function which return its information in the form of **category(id, version)** like **BinaryResource(id='riscv-hello', resource_version='1.0.0')**.
+- Users can use GEM5_RESOURCE_JSON  and GEM5_RESOURCE_JSON_APPEND env variables to overwrite all the data sources with the provided JSON and append a JSON file to all the data source respectively. More information can be found [here](https://www.gem5.org/documentation/gem5-stdlib/using-local-resources).
+
+### Other user-facing changes
+
+- Added support for clang 15 and clang 16
+- gem5 no longer supports building on Ubuntu 18.04
+- GCC 7, GCC 9, and clang 6 are no longer supported
+- Two `DRAMInterface` stats have changed names (`bytesRead` and `bytesWritten`). For instance, `board.memory.mem_ctrl.dram.bytesRead` and `board.memory.mem_ctrl.dram.bytesWritten`. These are changed to `dramBytesRead` and `dramBytesWritten` so they don't collide with the stat with the same name in `AbstractMemory`.
+- The stats for `NVMInterface` (`bytesRead` and `bytesWritten`) have been change to `nvmBytesRead` and `nvmBytesWritten` as well.
+
+## Full-system GPU model improvements
+
+- Support for up to latest ROCm 5.7.1.
+- Various changes to enable PyTorch/TensorFlow simulations.
+- New packer disk image script containing ROCm 5.4.2, PyTorch 2.0.1, and Tensorflow 2.11.
+- GPU instructions can now perform atomics on host addresses.
+- The provided configs scripts can now run KVM on more restrictive setups.
+- Add support to checkpoint and restore between kernels in GPUFS, including adding various AQL, HSA Queue, VMID map, MQD attributes, GART translations, and PM4Queues to GPU checkpoints
+- move GPU cache recorder code to RubyPort instead of Sequencer/GPUCoalescer to allow checkpointing to occur
+- add support for flushing GPU caches, as well as cache cooldown/warmup support, for checkpoints
+- Update vega10_kvm.py to add checkpointing instructions
+
+## SE mode GPU model improvements
+
+- started adding support for mmap'ing inputs for GPUSE tests, which reduces their runtime by 8-15% per run
+
+## GPU model improvements
+
+- update GPU VIPER and Coalescer support to ensure correct replacement policy behavior when multiple requests from the same CU are concurrently accessing the same line
+- fix bug with GPU VIPER to resolve a race conflict for loads that bypass the TCP (L1D$)
+- fix bug with MRU replacement policy updates in GPU SQC (I$)
+- update GPU and Ruby debug prints to resolve various small errors
+- Add configurable GPU L1,L2 num banks and L2 latencies
+- Add decodings for new MI100 VOP2 insts
+- Add GPU GLC Atomic Resource Constraints to better model how atomic resources are shared at GPU TCC (L2$)
+- Update GPU tester to work with both requests that bypass all caches (SLC) and requests that bypass only the TCP (L1D$)
+- Fixes for how write mask works for GPU WB L2 caches
+- Added support for WB and WT GPU atomics
+- Added configurable support to better model the latency of GPU atomic requests
+- fix GPU's default number of HW barrier/CU to better model amount of concurrency GPU CUs should have
+
+## RISC-V RVV 1.0 implemented
+
+This was a huge undertaking by a large number of people!
+Some of these people include Adrià Armejach who pushed it over the finish line, Xuan Hu who pushed the most recent version to gerrit that Adrià picked up,
+Jerin Joy who did much of the initial work, and many others who contributed to the implementation including Roger Chang, Hoa Nguyen who put significant effort into testing and reviewing the code.
+
+- Most of the instructions in the 1.0 spec implemented
+- Works with both FS and SE mode
+- Compatible with Simple CPUs, the O3, and the minor CPU models
+- User can specify the width of the vector units
+- Future improvements
+  - Widening/narrowing instructions are *not* implemented
+  - The model for executing memory instructions is not very high performance
+  - The statistics are not correct for counting vector instruction execution
+
+## ArmISA changes/improvements
+
+- Architectural support for the following extensions:
+* FEAT_TLBIRANGE
+* FEAT_FGT
+* FEAT_TCR2
+* FEAT_SCTLR2
+
+- Arm support for SVE instructions improved
+- Fixed some FEAT_SEL2 related issues:
+  - [Fix virtual interrupt logic in secure mode](https://github.com/gem5/gem5/pull/584)
+  - [Make interrupt masking handle VHE/SEL2 cases](https://github.com/gem5/gem5/pull/430)
+- Removed support for Arm Jazelle and ThumbEE
+- Implementation of an Arm Capstone Disassembler
+
+## Other notable changes/improvements
+
+- Improvements to the CHI coherence protocol implementation
+- Far atomics implemented in CHI
+- Ruby now supports using the prefetchers from the classic caches, if the protocol supports it. CHI has been extended to support the classic prefetchers.
+- Bug in RISC-V TLB to fixed to correctly count misses and hits
+- Added new RISC-V Zcb instructions https://github.com/gem5/gem5/pull/399
+- RISC-V can now use a separate binary for the bootloader and kernel in FS mode
+- DRAMSys integration updated to latest DRAMSys version (5.0)
+- Improved support for RISC-V privilege modes
+- Fixed bug in switching CPUs with RISC-V
+- CPU branch preditor refactoring to prepare for decoupled front end support
+- Perf is now optional when using the KVM CPU model
+- Improvements to the gem5-SST bridge including updating to SST 13.0
+- Improved formatting of documentation in stdlib
+- By default use isort for python imports in style
+- Many, many testing improvements during the migration to GitHub actions
+- Fixed the elastic trace replaying logic (TraceCPU)
+
+## Known Bugs/Issues
+
+- [RISC-V RVV Bad execution of riscv rvv vss instruction](https://github.com/gem5/gem5/issues/594)
+- [RISC-V Vector Extension float32_t bugs/unsupported widening instructions](https://github.com/gem5/gem5/issues/442)
+- [Implement AVX xsave/xstor to avoid workaround when checkpointing](https://github.com/gem5/gem5/issues/434)
+- [Adding Vector Segmented Loads/Stores to RISC-V V 1.0 implementation](https://github.com/gem5/gem5/issues/382)
+- [Integer overflow in AddrRange subset check](https://github.com/gem5/gem5/issues/240)
+- [RISCV64 TLB refuses to access upper half of physical address space](https://github.com/gem5/gem5/issues/238)
+- [Bug when trying to restore checkpoints in SPARC: “panic: panic condition !pte occurred: Tried to execute unmapped address 0.”](https://github.com/gem5/gem5/issues/197)
+- [BaseCache::recvTimingResp can trigger an assertion error from getTarget() due to MSHR in senderState having no targets](https://github.com/gem5/gem5/issues/100)
+
+# Version 23.0.1.0
+
+This minor release incorporates documentation updates, bug fixes, and some minor improvements.
+
+## Documentation updates
+
+* "TESTING.md" has been updated to more accurately reflect our current testing infrastructure.
+* "README" has been replaced with "README.md" and includes more up-to-date information on using gem5.
+* "CONTRIBUTING.md" has been updated to reflect our migration to GitHub and the changes in policy and proceedures.
+* Where needed old references to Gerrit have been removed in favor of GitHub.
+
+## Bug Fixes
+
+* Fixes an assert failure when using ARM which was trigged when `shiftAmt` is 0 for a UQRSH instruction.
+* Fixes `name 'fatal' is not defined` being thrown when tracing is off.
+* Fixes a bug in ARM in which the TLBIOS instructions were decoded as normal MSR instructions with no effect on the TLBs.
+* Fixes invalid `packet_id` value in flit.
+* Fixes default CustomMesh for use with Garnet.
+
+## Minor Improvements
+
+* The gem5 resources downloader now outputs more helpful errors in the case of a failure.
+* "util/github-runners-vagrant" has been added. This outlines how to setup a GitHub Action's set-hosted runner for gem5.
+* The PyUnit tests have been refactored to no longer download large resources during testing.
+* Using Perf is now optional when utilizing KVM CPUs.
+
+# Version 23.0.0.1
+
+**[HOTFIX]** Fixes compilation of `GCN3_X86` and `VEGA_X85`.
+
+This hotfix release:
+
+* Removes the use of 'std::random_shuffle'.
+This is a deprecated function in C++17 and has been removed in C++20.
+* Adds missing 'overrides' in "src/arch/amdgpu/vega/insts/instructions.hh".
+* Fixes Linux specific includes, allowing for compilation on non-linux systems.
+* Adds a missing include in "src/gpu-compute/dispatcher.cc".
+
+# Version 23.0
+
+This release has approximately 500 contributions from 50 unique contributors.
+Below we highlight key gem5 features and improvements in this release.
+
+## Significant API and user-facing changes
+
+### Major renaming of CPU stats
+
+The CPU stats have been renamed.
+See <https://gem5.atlassian.net/browse/GEM5-1304> for details.
+
+Now, each stage (fetch, execute, commit) have their own stat group.
+Stats that are shared between the different CPU model (O3, Minor, Simple) now have the exact same names.
+
+**Important:** Some stat names were misleading before this change.
+With this change, stats with the same names between different CPU models have the same meaning.
+
+### `fs.py` and `se.py` deprecated
+
+These scripts have not been well supported for many gem5 releases.
+With gem5 23.0, we have officially deprecated these scripts.
+They have been moved into the `deprecated` directory, **but they will be removed in a future release.**
+As a replacement, we strongly suggest using the gem5 standard library.
+See <https://www.gem5.org/documentation/gem5-stdlib/overview> for more information.
+
+### Renaming of `DEBUG` guard into `GEM5_DEBUG`
+
+Scons no longer defines the `DEBUG` guard in debug builds, so code making using of it should use `GEM5_DEBUG` instead.
+
+### Other API changes
+
+Also, this release:
+
+- Removes deprecated namespaces. Namespace names were updated a couple of releases ago. This release removes the old names.
+- Uses `MemberEventWrapper` in favor of `EventWrapper` for instance member functions.
+- Adds an extension mechanism to `Packet` and `Request`.
+- Sets x86 CPU vendor string to "HygoneGenuine" to better support GLIBC.
+
+## New features and improvements
+
+### Large improvements to gem5 resources and gem5 resources website
+
+We now have a new web portal for the gem5 resources: <https://resources.gem5.org>
+
+This web portal will allow users to browse the resources available (e.g., disk images, kernels, workloads, binaries, simpoints, etc.) to use out-of-the-box with the gem5 standard library.
+You can filter based on architecture, resource type, and compatible gem5 versions.
+
+For each resource, there are examples of how to use the resource and pointers to examples using the resource in the gem5 codebase.
+
+More information can be found on gem5's website: <https://www.gem5.org/documentation/general_docs/gem5_resources/>
+
+We will be expanding gem5 resources with more workloads and resources over the course of the next release.
+If you would like to contribute to gem5 resources by uploading your own workloads, disk images, etc., please create an issue on GitHub.
+
+In addition to the new gem5 Resources web portal, the gem5 Resources API has been significantly updated and improved.
+There are now much simpler functions for getting resources such as `obtain_resource(<name>)` that will download the resource by name and return a reference that can be used (e.g., as a binary in `set_se_workload` function on the board).
+As such the generic `Resouce` class has been deprecated and will be removed in a future release.
+
+Resources are now specialized for their particular category.
+For example, there is now a `BinaryResource` class which will return if a user specifies a binary resource when using the `obtain_resource` function.
+This allow for resource typing and for greater resource specialization.
+
+### Arm ISA improvements
+
+Architectural support for Armv9 [Scalable Matrix extension](https://developer.arm.com/documentation/ddi0616/latest) (FEAT_SME).
+The implementation employs a simple renaming scheme for the Za array register in the O3 CPU, so that writes to difference tiles in the register are considered a dependency and are therefore serialized.
+
+The following SVE and SIMD & FP extensions have also been implemented:
+* FEAT_F64MM
+* FEAT_F32MM
+* FEAT_DOTPROD
+* FEAT_I8MM
+
+And more generally:
+
+* FEAT_TLBIOS
+* FEAT_FLAGM
+* FEAT_FLAGM2
+* FEAT_RNG
+* FEAT_RNG_TRAP
+* FEAT_EVT
+
+### Support for DRAMSys
+
+gem5 can now use DRAMSys <https://github.com/tukl-msd/DRAMSys> as a DRAM backend.
+
+### RISC-V improvements
+
+This release:
+
+- Fully implements RISC-V scalar cryptography extensions.
+- Fully implement RISC-V rv32.
+- Implements PMP lock features.
+- Adds general RISC-V improvements to provide better stability.
+
+### Standard library improvements and new components
+
+This release:
+
+- Adds MESI_Three_Level component.
+- Supports ELFies and LoopPoint analysis output from Sniper.
+- Supports DRAMSys in the stdlib.
+
+## Bugfixes and other small improvements
+
+This release also:
+
+- Removes deprecated python libraries.
+- Adds a DDR5 model.
+- Adds AMD GPU MI200/gfx90a support.
+- Changes building so it no longer "duplicates sources" in build/ which improves support for some IDEs and code analysis. If you still need to duplicate sources you can use the `--duplicate-sources` option to `scons`.
+- Enables `--debug-activate=<object name>` to use debug trace for only a single SimObject (the opposite of `--debug-ignore`). See `--debug-help` for more information.
+- Adds support to exit the simulation loop based on Arm-PMU events.
+- Supports Python 3.11.
+- Adds the idea of a CpuCluster to gem5.
+
+
 # Version 22.1.0.0
 
 This release has 500 contributions from 48 unique contributors and marks our second major release of 2022.

@@ -274,34 +274,34 @@ namespace VegaISA
         &Decoder::decode_OP_VOP2__V_SUBREV_U32,
         &Decoder::decode_OP_VOP2__V_SUBREV_U32,
         &Decoder::decode_OP_VOP2__V_SUBREV_U32,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
-        &Decoder::decode_invalid,
+        &Decoder::decode_OP_VOP2__V_DOT2C_F32_F16,
+        &Decoder::decode_OP_VOP2__V_DOT2C_F32_F16,
+        &Decoder::decode_OP_VOP2__V_DOT2C_F32_F16,
+        &Decoder::decode_OP_VOP2__V_DOT2C_F32_F16,
+        &Decoder::decode_OP_VOP2__V_DOT2C_I32_I16,
+        &Decoder::decode_OP_VOP2__V_DOT2C_I32_I16,
+        &Decoder::decode_OP_VOP2__V_DOT2C_I32_I16,
+        &Decoder::decode_OP_VOP2__V_DOT2C_I32_I16,
+        &Decoder::decode_OP_VOP2__V_DOT4C_I32_I8,
+        &Decoder::decode_OP_VOP2__V_DOT4C_I32_I8,
+        &Decoder::decode_OP_VOP2__V_DOT4C_I32_I8,
+        &Decoder::decode_OP_VOP2__V_DOT4C_I32_I8,
+        &Decoder::decode_OP_VOP2__V_DOT8C_I32_I4,
+        &Decoder::decode_OP_VOP2__V_DOT8C_I32_I4,
+        &Decoder::decode_OP_VOP2__V_DOT8C_I32_I4,
+        &Decoder::decode_OP_VOP2__V_DOT8C_I32_I4,
+        &Decoder::decode_OP_VOP2__V_FMAC_F32,
+        &Decoder::decode_OP_VOP2__V_FMAC_F32,
+        &Decoder::decode_OP_VOP2__V_FMAC_F32,
+        &Decoder::decode_OP_VOP2__V_FMAC_F32,
+        &Decoder::decode_OP_VOP2__V_PK_FMAC_F16,
+        &Decoder::decode_OP_VOP2__V_PK_FMAC_F16,
+        &Decoder::decode_OP_VOP2__V_PK_FMAC_F16,
+        &Decoder::decode_OP_VOP2__V_PK_FMAC_F16,
+        &Decoder::decode_OP_VOP2__V_XNOR_B32,
+        &Decoder::decode_OP_VOP2__V_XNOR_B32,
+        &Decoder::decode_OP_VOP2__V_XNOR_B32,
+        &Decoder::decode_OP_VOP2__V_XNOR_B32,
         &Decoder::subDecode_OP_VOPC,
         &Decoder::subDecode_OP_VOPC,
         &Decoder::subDecode_OP_VOPC,
@@ -495,7 +495,7 @@ namespace VegaISA
         &Decoder::decode_invalid,
         &Decoder::decode_invalid,
         &Decoder::subDecode_OP_FLAT,
-        &Decoder::decode_invalid,
+        &Decoder::subDecode_OP_FLAT,
         &Decoder::subDecode_OP_FLAT,
         &Decoder::subDecode_OP_FLAT,
         &Decoder::decode_invalid,
@@ -3140,8 +3140,8 @@ namespace VegaISA
         &Decoder::decode_OP_VOP1__V_CVT_NORM_I16_F16,
         &Decoder::decode_OP_VOP1__V_CVT_NORM_U16_F16,
         &Decoder::decode_OP_VOP1__V_SAT_PK_U8_I16,
-        &Decoder::decode_OP_VOP1__V_SWAP_B32,
         &Decoder::decode_invalid,
+        &Decoder::decode_OP_VOP1__V_SWAP_B32,
         &Decoder::decode_invalid,
         &Decoder::decode_invalid,
         &Decoder::decode_invalid,
@@ -4169,6 +4169,55 @@ namespace VegaISA
     Decoder::decode_OP_VOP2__V_SUBREV_U32(MachInst iFmt)
     {
         return new Inst_VOP2__V_SUBREV_U32(&iFmt->iFmt_VOP2);
+    }
+
+    GPUStaticInst*
+    Decoder::decode_OP_VOP2__V_DOT2C_F32_F16(MachInst iFmt)
+    {
+        fatal("Trying to decode instruction without a class\n");
+        return nullptr;
+    }
+
+    GPUStaticInst*
+    Decoder::decode_OP_VOP2__V_DOT2C_I32_I16(MachInst iFmt)
+    {
+        fatal("Trying to decode instruction without a class\n");
+        return nullptr;
+    }
+
+    GPUStaticInst*
+    Decoder::decode_OP_VOP2__V_DOT4C_I32_I8(MachInst iFmt)
+    {
+        fatal("Trying to decode instruction without a class\n");
+        return nullptr;
+    }
+
+    GPUStaticInst*
+    Decoder::decode_OP_VOP2__V_DOT8C_I32_I4(MachInst iFmt)
+    {
+        fatal("Trying to decode instruction without a class\n");
+        return nullptr;
+    }
+
+    GPUStaticInst*
+    Decoder::decode_OP_VOP2__V_FMAC_F32(MachInst iFmt)
+    {
+        fatal("Trying to decode instruction without a class\n");
+        return nullptr;
+    }
+
+    GPUStaticInst*
+    Decoder::decode_OP_VOP2__V_PK_FMAC_F16(MachInst iFmt)
+    {
+        fatal("Trying to decode instruction without a class\n");
+        return nullptr;
+    }
+
+    GPUStaticInst*
+    Decoder::decode_OP_VOP2__V_XNOR_B32(MachInst iFmt)
+    {
+        fatal("Trying to decode instruction without a class\n");
+        return nullptr;
     }
 
     GPUStaticInst*
@@ -6971,7 +7020,7 @@ namespace VegaISA
     GPUStaticInst*
     Decoder::decode_OPU_VOP3__V_OR3_B32(MachInst iFmt)
     {
-        return new Inst_VOP3__V_OR_B32(&iFmt->iFmt_VOP3A);
+        return new Inst_VOP3__V_OR3_B32(&iFmt->iFmt_VOP3A);
     }
 
     GPUStaticInst*
@@ -7706,8 +7755,7 @@ namespace VegaISA
     GPUStaticInst*
     Decoder::decode_OP_DS__DS_WRITE_B8_D16_HI(MachInst iFmt)
     {
-        fatal("Trying to decode instruction without a class\n");
-        return nullptr;
+        return new Inst_DS__DS_WRITE_B8_D16_HI(&iFmt->iFmt_DS);
     }
 
     GPUStaticInst*

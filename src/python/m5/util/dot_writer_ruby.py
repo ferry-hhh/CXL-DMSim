@@ -36,6 +36,7 @@
 # Creates a visual representation of a Ruby network topology
 
 import os
+
 import m5
 from m5.util import warn
 
@@ -46,7 +47,7 @@ except:
 
 
 def _dot_rgb_to_html(r, g, b):
-    return "#%.2x%.2x%.2x" % (r, g, b)
+    return f"#{r:02x}{g:02x}{b:02x}"
 
 
 def _dot_create_router_node(full_path, label):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2015 Jason Power
 # All rights reserved.
 #
@@ -55,7 +54,7 @@ class L1Cache(Cache):
     tgts_per_mshr = 20
 
     def __init__(self, options=None):
-        super(L1Cache, self).__init__()
+        super().__init__()
         pass
 
     def connectBus(self, bus):
@@ -75,11 +74,11 @@ class L1ICache(L1Cache):
     size = "16kB"
 
     SimpleOpts.add_option(
-        "--l1i_size", help="L1 instruction cache size. Default: %s" % size
+        "--l1i_size", help=f"L1 instruction cache size. Default: {size}"
     )
 
     def __init__(self, opts=None):
-        super(L1ICache, self).__init__(opts)
+        super().__init__(opts)
         if not opts or not opts.l1i_size:
             return
         self.size = opts.l1i_size
@@ -96,11 +95,11 @@ class L1DCache(L1Cache):
     size = "64kB"
 
     SimpleOpts.add_option(
-        "--l1d_size", help="L1 data cache size. Default: %s" % size
+        "--l1d_size", help=f"L1 data cache size. Default: {size}"
     )
 
     def __init__(self, opts=None):
-        super(L1DCache, self).__init__(opts)
+        super().__init__(opts)
         if not opts or not opts.l1d_size:
             return
         self.size = opts.l1d_size
@@ -122,12 +121,10 @@ class L2Cache(Cache):
     mshrs = 20
     tgts_per_mshr = 12
 
-    SimpleOpts.add_option(
-        "--l2_size", help="L2 cache size. Default: %s" % size
-    )
+    SimpleOpts.add_option("--l2_size", help=f"L2 cache size. Default: {size}")
 
     def __init__(self, opts=None):
-        super(L2Cache, self).__init__()
+        super().__init__()
         if not opts or not opts.l2_size:
             return
         self.size = opts.l2_size

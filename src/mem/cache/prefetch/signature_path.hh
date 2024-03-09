@@ -50,7 +50,6 @@ namespace gem5
 
 struct SignaturePathPrefetcherParams;
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -288,7 +287,8 @@ class SignaturePath : public Queued
     ~SignaturePath() = default;
 
     void calculatePrefetch(const PrefetchInfo &pfi,
-                           std::vector<AddrPriority> &addresses) override;
+                           std::vector<AddrPriority> &addresses,
+                           const CacheAccessor &cache) override;
 };
 
 } // namespace prefetch

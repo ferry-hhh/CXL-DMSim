@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, 2015, 2018 ARM Limited
+# Copyright (c) 2012-2013, 2015, 2018, 2023 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -36,15 +36,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.params import *
-from m5.proxy import *
-from m5.SimObject import SimObject
-
 from m5.objects.ClockedObject import ClockedObject
 from m5.objects.Compressors import BaseCacheCompressor
 from m5.objects.Prefetcher import BasePrefetcher
 from m5.objects.ReplacementPolicies import *
 from m5.objects.Tags import *
+from m5.params import *
+from m5.proxy import *
+from m5.SimObject import SimObject
+
 
 # Enum for cache clusivity, currently mostly inclusive or mostly
 # exclusive.
@@ -61,10 +61,10 @@ class WriteAllocator(SimObject):
     # allow whole-line write coalescing, and eventually switches to a
     # write-no-allocate policy.
     coalesce_limit = Param.Unsigned(
-        2, "Consecutive lines written before " "delaying for coalescing"
+        2, "Consecutive lines written before delaying for coalescing"
     )
     no_allocate_limit = Param.Unsigned(
-        12, "Consecutive lines written before" " skipping allocation"
+        12, "Consecutive lines written before skipping allocation"
     )
 
     delay_threshold = Param.Unsigned(
@@ -106,13 +106,6 @@ class BaseCache(ClockedObject):
     is_read_only = Param.Bool(False, "Is this cache read only (e.g. inst)")
 
     prefetcher = Param.BasePrefetcher(NULL, "Prefetcher attached to cache")
-    prefetch_on_access = Param.Bool(
-        False,
-        "Notify the hardware prefetcher on every access (not just misses)",
-    )
-    prefetch_on_pf_hit = Param.Bool(
-        False, "Notify the hardware prefetcher on hit on prefetched lines"
-    )
 
     tags = Param.BaseTags(BaseSetAssoc(), "Tag store")
     replacement_policy = Param.BaseReplacementPolicy(
@@ -129,7 +122,7 @@ class BaseCache(ClockedObject):
     # co-allocatable with another existing entry of the same superblock,
     # so try move the block to co-allocate it
     move_contractions = Param.Bool(
-        True, "Try to co-allocate blocks that " "contract"
+        True, "Try to co-allocate blocks that contract"
     )
 
     sequential_access = Param.Bool(

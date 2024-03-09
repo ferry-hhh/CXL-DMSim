@@ -1,6 +1,6 @@
 # -*- mode:python -*-
 
-# Copyright (c) 2013, 2015-2020 ARM Limited
+# Copyright (c) 2013, 2015-2020, 2023 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -44,15 +44,6 @@
 #
 # SCons top-level build description (SConstruct) file.
 #
-# While in this directory ('gem5'), just type 'scons' to build the default
-# configuration (see below), or type 'scons build/<CONFIG>/<binary>'
-# to build some other configuration (e.g., 'build/X86/gem5.opt' for
-# the optimized X86 version).
-#
-# You can build gem5 in a different directory as long as there is a
-# 'build/<CONFIG>' somewhere along the target path.  The build system
-# expects that all configs under the same build directory are being
-# built for the same host system.
 #
 # Examples:
 #
@@ -77,10 +68,11 @@
 
 # Global Python imports
 import atexit
+import itertools
 import os
 import sys
 
-from os import mkdir, remove, environ
+from os import mkdir, remove, environ, listdir
 from os.path import abspath, dirname, expanduser
 from os.path import isdir, isfile
 from os.path import join, split
@@ -115,8 +107,6 @@ AddOption('--no-colors', dest='use_colors', action='store_false',
           help="Don't add color to abbreviated scons output")
 AddOption('--with-cxx-config', action='store_true',
           help="Build with support for C++-based configuration")
-AddOption('--default',
-          help='Override which build_opts file to use for defaults')
 AddOption('--ignore-style', action='store_true',
           help='Disable style checking hooks')
 AddOption('--linker', action='store', default=None, choices=linker_options,
@@ -141,10 +131,21 @@ AddOption('--with-systemc-tests', action='store_true',
           help='Build systemc tests')
 AddOption('--install-hooks', action='store_true',
           help='Install revision control hooks non-interactively')
+AddOption('--limit-ld-memory-usage', action='store_true',
+          help='Tell ld, the linker, to reduce memory usage.')
 AddOption('--gprof', action='store_true',
           help='Enable support for the gprof profiler')
 AddOption('--pprof', action='store_true',
           help='Enable support for the pprof profiler')
+# Default to --no-duplicate-sources, but keep --duplicate-sources to opt-out
+# of this new build behaviour in case it introduces regressions. We could use
+# action=argparse.BooleanOptionalAction here once Python 3.9 is required.
+AddOption('--duplicate-sources', action='store_true', default=False,
+          dest='duplicate_sources',
+          help='Create symlinks to sources in the build directory')
+AddOption('--no-duplicate-sources', action='store_false',
+          dest='duplicate_sources',
+          help='Do not create symlinks to sources in the build directory')
 
 # Inject the built_tools directory into the python path.
 sys.path[1:1] = [ Dir('#build_tools').abspath ]
@@ -153,6 +154,7 @@ sys.path[1:1] = [ Dir('#build_tools').abspath ]
 # declared above.
 from gem5_scons import error, warning, summarize_warnings, parse_build_path
 from gem5_scons import TempFileSpawn, EnvDefaults, MakeAction, MakeActionTool
+from gem5_scons import kconfig
 import gem5_scons
 from gem5_scons.builders import ConfigFile, AddLocalRPATH, SwitchingHeaders
 from gem5_scons.builders import Blob
@@ -167,6 +169,10 @@ from gem5_scons.util import compareVersions, readCommand
 SetOption('warn', 'no-duplicate-environment')
 
 Export('MakeAction')
+
+# Patch re.compile to support inline flags anywhere within a RE
+# string. Required to use PLY with Python 3.11+.
+gem5_scons.patch_re_compile_for_inline_flags()
 
 ########################################################################
 #
@@ -193,7 +199,71 @@ if not ('CC' in main and 'CXX' in main):
     error("No C++ compiler installed (package g++ on Ubuntu and RedHat)")
 
 # Find default configuration & binary.
-Default(environ.get('M5_DEFAULT_BINARY', 'build/ARM/gem5.debug'))
+default_target = environ.get('M5_DEFAULT_BINARY', None)
+if default_target:
+    Default(default_target)
+
+# If no target is set, even a default, print help instead.
+if not BUILD_TARGETS:
+    warning("No target specified, and no default.")
+    SetOption('help', True)
+
+buildopts_dir = Dir('#build_opts')
+buildopts = list([f for f in os.listdir(buildopts_dir.abspath) if
+        isfile(os.path.join(buildopts_dir.abspath, f))])
+buildopts.sort()
+
+buildopt_list = '\n'.join(' ' * 10 + buildopt for buildopt in buildopts)
+
+Help(f"""
+Targets:
+        To build gem5 using a predefined configuration, use a target with
+        a directory called "build" in the path, followed by a directory named
+        after a predefined configuration in "build_opts" directory, and then
+        the actual target, likely a gem5 binary. For example:
+
+        scons build/ALL/gem5.opt
+
+        The "build" component tells SCons that the next part names an initial
+        configuration, and the part after that is the actual target.
+        The predefined targets currently available are:
+
+{buildopt_list}
+
+        The extension on the gem5 binary specifies what type of binary to
+        build. Options are:
+
+        debug: A debug binary with optimizations turned off and debug info
+            turned on.
+        opt: An optimized binary with debugging still turned on.
+        fast: An optimized binary with debugging, asserts, and tracing
+            disabled.
+
+        gem5 can also be built as a static or dynamic library. In that case,
+        the extension is determined by the operating system, so the binary type
+        is part of the target file name. For example:
+
+        scons build/ARM/libgem5_opt.so
+
+        In MacOS, the extension should change to "dylib" like this:
+
+        scons build/ARM/libgem5_opt.dylib
+
+        To build unit tests, you can use a target like this:
+
+        scons build/RISCV/unittests.debug
+
+        The unittests.debug part of the target is actual a directory which
+        holds the results for all the unit tests built with the "debug"
+        settings. When that's used as the target, SCons will build all the
+        files under that directory, which will run all the tests.
+
+        To build and run an individual test, you can built it's binary
+        specifically and then run it manually:
+
+        scons build/SPARC/base/bitunion.test.opt
+        build/SPARC/base/bitunion.test.opt
+""", append=True)
 
 
 ########################################################################
@@ -203,52 +273,134 @@ Default(environ.get('M5_DEFAULT_BINARY', 'build/ARM/gem5.debug'))
 #
 ########################################################################
 
-# helper function: find last occurrence of element in list
-def rfind(l, elt, offs = -1):
-    for i in range(len(l)+offs, 0, -1):
-        if l[i] == elt:
-            return i
-    raise ValueError("element not found")
+kconfig_actions = (
+    'defconfig',
+    'guiconfig',
+    'listnewconfig',
+    'menuconfig',
+    'oldconfig',
+    'olddefconfig',
+    'savedefconfig',
+    'setconfig',
+)
+
+Help("""
+Kconfig:
+        In addition to the default configs, you can also create your own
+        configs, or edit one that already exists. To use one of the kconfig
+        tools with a particular directory, use a target which is the directory
+        to configure, and then the name of the tool. For example, to run
+        menuconfig on directory build_foo/bar, run:
+
+        scons menuconfig build_foo/bar
+
+        will set up a build directory in build_foo/bar if one doesn't already
+        exist, and open the menuconfig editor to view/set configuration
+        values.
+
+Kconfig tools:
+        defconfig:
+        Set up a config using values specified in a defconfig file, or if no
+        value is given, use the default. The second argument specifies the
+        defconfig file. A defconfig file in the build_opts directory can be
+        implicitly specified in the build path via `build/<defconfig file>/`
+
+        scons defconfig build_foo/bar build_opts/MIPS
+
+
+        guiconfig:
+        Opens the guiconfig editor which will let you view and edit config
+        values, and view help text. guiconfig runs as a graphical application.
+
+        scons guiconfig build_foo/bar
+
+
+        listnewconfig:
+        Lists config options which are new in the Kconfig and which are not
+        currently set in the existing config file.
+
+        scons listnewconfig build_foo/bar
+
+
+        menuconfig:
+        Opens the menuconfig editor which will let you view and edit config
+        values, and view help text. menuconfig runs in text mode.
+
+        scons menuconfig build_foo/bar
+
+
+        oldconfig:
+        Update an existing config by adding settings for new options. This is
+        the same as the olddefconfig tool, except it asks what values you want
+        for the new settings.
+
+        scons oldconfig build_foo/bar
+
+
+        olddefconfig:
+        Update an existing config by adding settings for new options. This is
+        the same as the oldconfig tool, except it uses the default for any new
+        setting.
+
+        scons olddefconfig build_foo/bar
+
+
+        savedefconfig:
+        Save a defconfig file which would give rise to the current config.
+        For instance, you could use menuconfig to set up a config how you want
+        it with the options you cared about, and then use savedefconfig to save
+        a minimal config file. These files would be suitable to use in the
+        defconfig directory. The second argument specifies the filename for
+        the new defconfig file.
+
+        scons savedefconfig build_foo/bar new_def_config
+
+
+        setconfig:
+        Set values in an existing config directory as specified on the command
+        line. For example, to enable gem5's built in systemc kernel:
+
+        scons setconfig build_foo/bar USE_SYSTEMC=y
+""", append=True)
 
 # Take a list of paths (or SCons Nodes) and return a list with all
 # paths made absolute and ~-expanded.  Paths will be interpreted
 # relative to the launch directory unless a different root is provided
+
+def makePathAbsolute(path, root=GetLaunchDir()):
+    return abspath(os.path.join(root, expanduser(str(path))))
 def makePathListAbsolute(path_list, root=GetLaunchDir()):
-    return [abspath(os.path.join(root, expanduser(str(p))))
-            for p in path_list]
+    return [makePathAbsolute(p, root) for p in path_list]
 
-# Each target must have 'build' in the interior of the path; the
-# directory below this will determine the build parameters.  For
-# example, for target 'foo/bar/build/X86/arch/x86/blah.do' we
-# recognize that X86 specifies the configuration because it
-# follow 'build' in the build path.
+if BUILD_TARGETS and BUILD_TARGETS[0] in kconfig_actions:
+    # The build targets are really arguments for the kconfig action.
+    kconfig_args = BUILD_TARGETS[:]
+    BUILD_TARGETS[:] = []
 
-# The funky assignment to "[:]" is needed to replace the list contents
-# in place rather than reassign the symbol to a new list, which
-# doesn't work (obviously!).
-BUILD_TARGETS[:] = makePathListAbsolute(BUILD_TARGETS)
+    kconfig_action = kconfig_args[0]
+    if len(kconfig_args) < 2:
+        error(f'Missing arguments for kconfig action {kconfig_action}')
+    dir_to_configure = makePathAbsolute(kconfig_args[1])
 
-# Generate a list of the unique build roots and configs that the
-# collected targets reference.
-variant_paths = set()
-build_root = None
-for t in BUILD_TARGETS:
-    this_build_root, variant = parse_build_path(t)
+    kconfig_args = kconfig_args[2:]
 
-    # Make sure all targets use the same build root.
-    if not build_root:
-        build_root = this_build_root
-    elif this_build_root != build_root:
-        error("build targets not under same build root\n  %s\n  %s" %
-            (build_root, this_build_root))
+    variant_paths = {dir_to_configure}
+else:
+    # Each target must have 'build' in the interior of the path; the
+    # directory below this will determine the build parameters.  For
+    # example, for target 'foo/bar/build/X86/arch/x86/blah.do' we
+    # recognize that X86 specifies the configuration because it
+    # follow 'build' in the build path.
 
-    # Collect all the variants into a set.
-    variant_paths.add(os.path.join('/', build_root, variant))
+    # The funky assignment to "[:]" is needed to replace the list contents
+    # in place rather than reassign the symbol to a new list, which
+    # doesn't work (obviously!).
+    BUILD_TARGETS[:] = makePathListAbsolute(BUILD_TARGETS)
 
-# Make sure build_root exists (might not if this is the first build there)
-if not isdir(build_root):
-    mkdir(build_root)
-main['BUILDROOT'] = build_root
+    # Generate a list of the unique build directories that the collected
+    # targets reference.
+    variant_paths = set(map(parse_build_path, BUILD_TARGETS))
+    kconfig_action = None
 
 
 ########################################################################
@@ -265,6 +417,8 @@ main.Append(CPPPATH=[Dir('ext')])
 
 # Add shared top-level headers
 main.Prepend(CPPPATH=Dir('include'))
+if not GetOption('duplicate_sources'):
+    main.Prepend(CPPPATH=Dir('src'))
 
 
 ########################################################################
@@ -291,6 +445,17 @@ main['CLANG'] = CXX_version and CXX_version.find('clang') >= 0
 if main['GCC'] + main['CLANG'] > 1:
     error('Two compilers enabled at once?')
 
+# Find the gem5 binary target architecture (usually host architecture). The
+# "Target: <target>" is consistent accross gcc and clang at the time of
+# writting this.
+bin_target_arch = readCommand([main['CXX'], '--verbose'], exception=False)
+main["BIN_TARGET_ARCH"] = (
+    "x86_64"
+    if bin_target_arch.find("Target: x86_64") != -1
+    else "aarch64"
+    if bin_target_arch.find("Target: aarch64") != -1
+    else "unknown"
+)
 
 ########################################################################
 #
@@ -370,9 +535,13 @@ for variant_path in variant_paths:
     env = main.Clone()
     env['BUILDDIR'] = variant_path
 
-    gem5_build = os.path.join(build_root, variant_path, 'gem5.build')
+    gem5_build = os.path.join(variant_path, 'gem5.build')
     env['GEM5BUILD'] = gem5_build
     Execute(Mkdir(gem5_build))
+
+    config_file = Dir(gem5_build).File('config')
+    kconfig_file = Dir(gem5_build).File('Kconfig')
+    gem5_kconfig_file = Dir('#src').File('Kconfig')
 
     env.SConsignFile(os.path.join(gem5_build, 'sconsign'))
 
@@ -421,6 +590,14 @@ for variant_path in variant_paths:
                     conf.CheckLinkFlag('-Wl,--threads')
                     conf.CheckLinkFlag(
                             '-Wl,--thread-count=%d' % GetOption('num_jobs'))
+
+        with gem5_scons.Configure(env) as conf:
+            ld_optimize_memory_usage = GetOption('limit_ld_memory_usage')
+            if ld_optimize_memory_usage:
+                if conf.CheckLinkFlag('-Wl,--no-keep-memory'):
+                    env.Append(LINKFLAGS=['-Wl,--no-keep-memory'])
+                else:
+                    error("Unable to use --no-keep-memory with the linker")
     else:
         error('\n'.join((
               "Don't know what compiler options to use for your compiler.",
@@ -439,10 +616,6 @@ for variant_path in variant_paths:
         if compareVersions(env['CXXVERSION'], "7") < 0:
             error('gcc version 7 or newer required.\n'
                   'Installed version:', env['CXXVERSION'])
-
-        with gem5_scons.Configure(env) as conf:
-            # This warning has a false positive in the systemc in g++ 11.1.
-            conf.CheckCxxFlag('-Wno-free-nonheap-object')
 
         # Add the appropriate Link-Time Optimization (LTO) flags if
         # `--with-lto` is set.
@@ -465,6 +638,17 @@ for variant_path in variant_paths:
             '-fno-builtin-malloc', '-fno-builtin-calloc',
             '-fno-builtin-realloc', '-fno-builtin-free'])
 
+        if compareVersions(env['CXXVERSION'], "9") < 0:
+            # `libstdc++fs`` must be explicitly linked for `std::filesystem``
+            # in GCC version 8. As of GCC version 9, this is not required.
+            #
+            # In GCC 7 the `libstdc++fs`` library explicit linkage is also
+            # required but the `std::filesystem` is under the `experimental`
+            # namespace(`std::experimental::filesystem`).
+            #
+            # Note: gem5 does not support GCC versions < 7.
+            env.Append(LIBS=['stdc++fs'])
+
     elif env['CLANG']:
         if compareVersions(env['CXXVERSION'], "6") < 0:
             error('clang version 6 or newer required.\n'
@@ -481,6 +665,18 @@ for variant_path in variant_paths:
             conf.CheckCxxFlag('-Wno-defaulted-function-deleted')
 
         env.Append(TCMALLOC_CCFLAGS=['-fno-builtin'])
+
+        if compareVersions(env['CXXVERSION'], "11") < 0:
+            # `libstdc++fs`` must be explicitly linked for `std::filesystem``
+            # in clang versions 6 through 10.
+            #
+            # In addition, for these versions, the
+            # `std::filesystem` is under the `experimental`
+            # namespace(`std::experimental::filesystem`).
+            #
+            # Note: gem5 does not support clang versions < 6.
+            env.Append(LIBS=['stdc++fs'])
+
 
         # On Mac OS X/Darwin we need to also use libc++ (part of XCode) as
         # opposed to libstdc++, as the later is dated.
@@ -510,9 +706,44 @@ for variant_path in variant_paths:
     if sanitizers:
         sanitizers = ','.join(sanitizers)
         if env['GCC'] or env['CLANG']:
+            libsan = (
+                ['-static-libubsan', '-static-libasan']
+                if env['GCC']
+                else ['-static-libsan']
+            )
             env.Append(CCFLAGS=['-fsanitize=%s' % sanitizers,
                                  '-fno-omit-frame-pointer'],
-                        LINKFLAGS='-fsanitize=%s' % sanitizers)
+                       LINKFLAGS=['-fsanitize=%s' % sanitizers] + libsan)
+
+            if main["BIN_TARGET_ARCH"] == "x86_64":
+                # Sanitizers can enlarge binary size drammatically, north of
+                # 2GB.  This can prevent successful linkage due to symbol
+                # relocation outside from the 2GB region allocated by the small
+                # x86_64 code model that is enabled by default (32-bit relative
+                # offset limitation).  Switching to the medium model in x86_64
+                # enables 64-bit relative offset for large objects (>64KB by
+                # default) while sticking to 32-bit relative addressing for
+                # code and smaller objects. Note this comes at a potential
+                # performance cost so it should not be enabled in all cases.
+                # This should still be a very happy medium for
+                # non-perf-critical sanitized builds.
+                env.Append(CCFLAGS='-mcmodel=medium')
+                env.Append(LINKFLAGS='-mcmodel=medium')
+            elif main["BIN_TARGET_ARCH"] == "aarch64":
+                # aarch64 default code model is small but with different
+                # constrains than for x86_64. With aarch64, the small code
+                # model enables 4GB distance between symbols. This is
+                # sufficient for the largest ALL/gem5.debug target with all
+                # sanitizers enabled at the time of writting this. Note that
+                # the next aarch64 code model is "large" which prevents dynamic
+                # linkage so it should be avoided when possible.
+                pass
+            else:
+                warning(
+                    "Unknown code model options for your architecture. "
+                    "Linkage might fail for larger binaries "
+                    "(e.g., ALL/gem5.debug with sanitizers enabled)."
+                )
         else:
             warning("Don't know how to enable %s sanitizer(s) for your "
                     "compiler." % sanitizers)
@@ -549,7 +780,7 @@ for variant_path in variant_paths:
                 LINKFLAGS=['-Wl,--no-as-needed', '-lprofiler',
                     '-Wl,--as-needed'])
 
-    env['HAVE_PKG_CONFIG'] = env.Detect('pkg-config')
+    env['HAVE_PKG_CONFIG'] = env.Detect('pkg-config') == 'pkg-config'
 
     with gem5_scons.Configure(env) as conf:
         # On Solaris you need to use libsocket for socket ops
@@ -564,9 +795,9 @@ for variant_path in variant_paths:
 
     if not GetOption('without_tcmalloc'):
         with gem5_scons.Configure(env) as conf:
-            if conf.CheckLib('tcmalloc'):
+            if conf.CheckLib('tcmalloc_minimal'):
                 conf.env.Append(CCFLAGS=conf.env['TCMALLOC_CCFLAGS'])
-            elif conf.CheckLib('tcmalloc_minimal'):
+            elif conf.CheckLib('tcmalloc'):
                 conf.env.Append(CCFLAGS=conf.env['TCMALLOC_CCFLAGS'])
             else:
                 warning("You can get a 12% performance improvement by "
@@ -593,59 +824,13 @@ for variant_path in variant_paths:
         after_sconsopts_callbacks.append(cb)
     Export('AfterSConsopts')
 
-    # Sticky variables get saved in the variables file so they persist from
-    # one invocation to the next (unless overridden, in which case the new
-    # value becomes sticky).
-    sticky_vars = Variables(args=ARGUMENTS)
-    Export('sticky_vars')
+    extras_file = os.path.join(gem5_build, 'extras')
+    extras_var = Variables(extras_file, args=ARGUMENTS)
 
-    # EXTRAS is special since it affects what SConsopts need to be read.
-    sticky_vars.Add(('EXTRAS', 'Add extra directories to the compilation', ''))
-
-    # Set env variables according to the build directory config.
-    sticky_vars.files = []
-    # Variables for $BUILD_ROOT/$VARIANT_DIR are stored in
-    # $BUILD_ROOT/$VARIANT_DIR/gem5.build/variables
-
-    gem5_build_vars = os.path.join(gem5_build, 'variables')
-    build_root_vars = os.path.join(build_root, 'variables', variant_dir)
-    current_vars_files = [gem5_build_vars, build_root_vars]
-    existing_vars_files = list(filter(isfile, current_vars_files))
-    if existing_vars_files:
-        sticky_vars.files.extend(existing_vars_files)
-        if not GetOption('silent'):
-            print('Using saved variables file(s) %s' %
-                    ', '.join(existing_vars_files))
-    else:
-        # Variant specific variables file doesn't exist.
-
-        # Get default build variables from source tree.  Variables are
-        # normally determined by name of $VARIANT_DIR, but can be
-        # overridden by '--default=' arg on command line.
-        default = GetOption('default')
-        opts_dir = Dir('#build_opts').abspath
-        if default:
-            default_vars_files = [
-                    gem5_build_vars,
-                    build_root_vars,
-                    os.path.join(opts_dir, default)
-                ]
-        else:
-            default_vars_files = [os.path.join(opts_dir, variant_dir)]
-        existing_default_files = list(filter(isfile, default_vars_files))
-        if existing_default_files:
-            default_vars_file = existing_default_files[0]
-            sticky_vars.files.append(default_vars_file)
-            print("Variables file(s) %s not found,\n  using defaults in %s" %
-                    (' or '.join(current_vars_files), default_vars_file))
-        else:
-            error("Cannot find variables file(s) %s or default file(s) %s" %
-                    (' or '.join(current_vars_files),
-                     ' or '.join(default_vars_files)))
-            Exit(1)
+    extras_var.Add(('EXTRAS', 'Add extra directories to the compilation', ''))
 
     # Apply current settings for EXTRAS to env.
-    sticky_vars.Update(env)
+    extras_var.Update(env)
 
     # Parse EXTRAS variable to build list of all directories where we're
     # look for sources etc.  This list is exported as extras_dir_list.
@@ -655,6 +840,17 @@ for variant_path in variant_paths:
         extras_dir_list = []
 
     Export('extras_dir_list')
+
+    # Generate a Kconfig that will source the main gem5 one, and any in any
+    # EXTRAS directories.
+    kconfig_base_py = Dir('#build_tools').File('kconfig_base.py')
+    kconfig_base_cmd_parts = [f'"{kconfig_base_py}" "{kconfig_file.abspath}"',
+            f'"{gem5_kconfig_file.abspath}"']
+    for ed in extras_dir_list:
+        kconfig_base_cmd_parts.append(f'"{ed}"')
+    kconfig_base_cmd = ' '.join(kconfig_base_cmd_parts)
+    if env.Execute(kconfig_base_cmd) != 0:
+        error("Failed to build base Kconfig file")
 
     # Variables which were determined with Configure.
     env['CONF'] = {}
@@ -683,24 +879,48 @@ for variant_path in variant_paths:
     for cb in after_sconsopts_callbacks:
         cb()
 
-    # Update env for new variables added by the SConsopts.
-    sticky_vars.Update(env)
+    # Handle any requested kconfig action, then exit.
+    if kconfig_action:
+        if kconfig_action == 'defconfig':
+            if len(kconfig_args) != 1:
+                error('Usage: scons defconfig <build dir> <defconfig file>')
+            defconfig_path = makePathAbsolute(kconfig_args[0])
+            kconfig.defconfig(env, kconfig_file.abspath,
+                    defconfig_path, config_file.abspath)
+        elif kconfig_action == 'guiconfig':
+            kconfig.guiconfig(env, kconfig_file.abspath, config_file.abspath,
+                    variant_path)
+        elif kconfig_action == 'listnewconfig':
+            kconfig.listnewconfig(env, kconfig_file.abspath,
+                    config_file.abspath)
+        elif kconfig_action == 'menuconfig':
+            kconfig.menuconfig(env, kconfig_file.abspath, config_file.abspath,
+                    variant_path)
+        elif kconfig_action == 'oldconfig':
+            kconfig.oldconfig(env, kconfig_file.abspath, config_file.abspath)
+        elif kconfig_action == 'olddefconfig':
+            kconfig.olddefconfig(env, kconfig_file.abspath,
+                    config_file.abspath)
+        elif kconfig_action == 'savedefconfig':
+            if len(kconfig_args) != 1:
+                error('Usage: scons defconfig <build dir> <defconfig file>')
+            defconfig_path = makePathAbsolute(kconfig_args[0])
+            kconfig.savedefconfig(env, kconfig_file.abspath,
+                    config_file.abspath, defconfig_path)
+        elif kconfig_action == 'setconfig':
+            kconfig.setconfig(env, kconfig_file.abspath, config_file.abspath,
+                    ARGUMENTS)
+        Exit(0)
 
-    Help('''
-Build variables for {dir}:
-{help}
-'''.format(dir=variant_dir, help=sticky_vars.GenerateHelpText(env)),
-         append=True)
+    # If no config exists yet, see if we know how to make one?
+    if not isfile(config_file.abspath):
+        buildopts_file = Dir('#build_opts').File(variant_dir)
+        if not isfile(buildopts_file.abspath):
+            error('No config found, and no implicit config recognized')
+        kconfig.defconfig(env, kconfig_file.abspath, buildopts_file.abspath,
+                config_file.abspath)
 
-    # If the old vars file exists, delete it to avoid confusion/stale values.
-    if isfile(build_root_vars):
-        warning(f'Deleting old variant variables file "{build_root_vars}"')
-        remove(build_root_vars)
-    # Save sticky variables back to the gem5.build variant variables file.
-    sticky_vars.Save(gem5_build_vars, env)
-
-    # Pull all the sticky variables into the CONF dict.
-    env['CONF'].update({key: env[key] for key in sticky_vars.keys()})
+    kconfig.update_env(env, kconfig_file.abspath, config_file.abspath)
 
     # Do this after we save setting back, or else we'll tack on an
     # extra 'qdo' every time we run scons.
@@ -729,11 +949,13 @@ Build variables for {dir}:
             build_dir = os.path.relpath(root, ext_dir)
             SConscript(os.path.join(root, 'SConscript'),
                        variant_dir=os.path.join(variant_ext, build_dir),
-                       exports=exports)
+                       exports=exports,
+                       duplicate=GetOption('duplicate_sources'))
 
     # The src/SConscript file sets up the build rules in 'env' according
     # to the configured variables.  It returns a list of environments,
     # one for each variant build (debug, opt, etc.)
-    SConscript('src/SConscript', variant_dir=variant_path, exports=exports)
+    SConscript('src/SConscript', variant_dir=variant_path, exports=exports,
+               duplicate=GetOption('duplicate_sources'))
 
 atexit.register(summarize_warnings)

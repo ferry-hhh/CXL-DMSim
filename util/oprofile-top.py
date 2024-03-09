@@ -28,9 +28,10 @@
 
 # Parse sampled function profile output (quick hack).
 
-import sys
-import re
 import getopt
+import re
+import sys
+
 from categories import *
 
 
@@ -45,7 +46,7 @@ def category(app, sym):
     for regexp, cat in categories_re:
         if regexp.match(name):
             return cat
-    print("no match for symbol %s" % name)
+    print(f"no match for symbol {name}")
     return "other"
 
 
@@ -66,7 +67,7 @@ total = 0
 prof = {}
 linenum = 0
 for line in f.readlines():
-    line = re.sub("\(no symbols\)", "nosym", line)
+    line = re.sub(r"\(no symbols\)", "nosym", line)
     line = re.sub("anonymous.*", "nosym", line)
     linenum += 1
     if linenum < 4:
@@ -99,4 +100,4 @@ if showidle:
 
 for d in cats:
     if d in prof:
-        print("%s -- %5.1f%% " % (d, 100 * float(prof[d]) / float(total)))
+        print(f"{d} -- {100 * float(prof[d]) / float(total):5.1f}% ")

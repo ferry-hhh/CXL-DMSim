@@ -37,13 +37,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.SimObject import *
-from m5.params import *
-from m5.proxy import *
-
 from m5.objects.DVFSHandler import *
 from m5.objects.SimpleMemory import *
 from m5.objects.Workload import StubWorkload
+from m5.params import *
+from m5.proxy import *
+from m5.SimObject import *
 
 
 class MemoryMode(Enum):
@@ -77,7 +76,7 @@ class System(SimObject):
     # mmap). By enabling this flag, we accommodate cases where a large
     # (but sparse) memory is simulated.
     mmap_using_noreserve = Param.Bool(
-        False, "mmap the backing store " "without reserving swap"
+        False, "mmap the backing store without reserving swap"
     )
 
     # The memory ranges are to be populated when creating the system
@@ -89,7 +88,7 @@ class System(SimObject):
 
     # The ranges backed by a shadowed ROM
     shadow_rom_ranges = VectorParam.AddrRange(
-        [], "Ranges  backed by a " "shadowed ROM"
+        [], "Ranges  backed by a shadowed ROM"
     )
 
     shared_backstore = Param.String(

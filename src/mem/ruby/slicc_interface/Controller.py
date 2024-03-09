@@ -36,9 +36,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
 from m5.proxy import *
-from m5.objects.ClockedObject import ClockedObject
 
 
 class RubyController(ClockedObject):
@@ -49,7 +49,7 @@ class RubyController(ClockedObject):
 
     version = Param.Int("")
     addr_ranges = VectorParam.AddrRange(
-        [AllMemory], "Address range this " "controller responds to"
+        [AllMemory], "Address range this controller responds to"
     )
     cluster_id = Param.UInt32(0, "Id of this controller's cluster")
 

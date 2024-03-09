@@ -34,15 +34,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from gem5.runtime import get_supported_isas
-import m5.objects
-import m5.internal.params
 import inspect
 import sys
 from textwrap import TextWrapper
 
+import m5.internal.params
+import m5.objects
 
-class ObjectList(object):
+from gem5.isas import ISA
+from gem5.runtime import get_supported_isas
+
+
+class ObjectList:
     """Creates a list of objects that are sub-classes of a given class."""
 
     def _is_obj_class(self, cls):
@@ -65,22 +68,18 @@ class ObjectList(object):
             sub_cls = self._sub_classes[real_name]
             return sub_cls
         except KeyError:
-            print(
-                "{} is not a valid sub-class of {}.".format(
-                    name, self.base_cls
-                )
-            )
+            print(f"{name} is not a valid sub-class of {self.base_cls}.")
             raise
 
     def print(self):
         """Print a list of available sub-classes and aliases."""
 
-        print("Available {} classes:".format(self.base_cls))
+        print(f"Available {self.base_cls} classes:")
         doc_wrapper = TextWrapper(
             initial_indent="\t\t", subsequent_indent="\t\t"
         )
         for name, cls in list(self._sub_classes.items()):
-            print("\t{}".format(name))
+            print(f"\t{name}")
 
             # Try to extract the class documentation from the class help
             # string.
@@ -90,9 +89,9 @@ class ObjectList(object):
                     print(line)
 
         if self._aliases:
-            print("\Aliases:")
+            print(r"\Aliases:")
             for alias, target in list(self._aliases.items()):
-                print("\t{} => {}".format(alias, target))
+                print(f"\t{alias} => {target}")
 
     def get_names(self):
         """Return a list of valid sub-class names and aliases."""
@@ -131,14 +130,14 @@ class CPUList(ObjectList):
         # We can't use the normal inspect.isclass because the ParamFactory
         # and ProxyFactory classes have a tendency to confuse it.
         try:
-            return super(CPUList, self)._is_obj_class(cls) and not issubclass(
+            return super()._is_obj_class(cls) and not issubclass(
                 cls, m5.objects.CheckerCPU
             )
         except (TypeError, AttributeError):
             return False
 
     def _add_objects(self):
-        super(CPUList, self)._add_objects()
+        super()._add_objects()
 
         from importlib import import_module
 
@@ -161,6 +160,27 @@ class CPUList(ObjectList):
                 ):
                     self._sub_classes[name] = cls
 
+    def get_isa(self, name: str) -> ISA:
+        """For a given CPU (string representation) determine the ISA of the
+        CPU."""
+
+        cls = self.get(name)
+
+        if hasattr(m5.objects, "X86CPU") and issubclass(
+            cls, m5.objects.X86CPU
+        ):
+            return ISA.X86
+        elif hasattr(m5.objects, "ArmCPU") and issubclass(
+            cls, m5.objects.ArmCPU
+        ):
+            return ISA.ARM
+        elif hasattr(m5.objects, "RiscvCPU") and issubclass(
+            cls, m5.objects.RiscvCPU
+        ):
+            return ISA.RISCV
+        else:
+            raise ValueError("Unable to determine CPU ISA.")
+
 
 class EnumList(ObjectList):
     """Creates a list of possible values for a given enum class."""
@@ -168,7 +188,7 @@ class EnumList(ObjectList):
     def _add_objects(self):
         """Add all enum values to the ObjectList"""
         self._sub_classes = {}
-        for (key, value) in list(self.base_cls.__members__.items()):
+        for key, value in list(self.base_cls.__members__.items()):
             # All Enums have a value Num_NAME at the end which we
             # do not want to include
             if not key.startswith("Num_"):
@@ -208,3 +228,4 @@ def _subclass_tester(name):
 
 is_kvm_cpu = _subclass_tester("BaseKvmCPU")
 is_noncaching_cpu = _subclass_tester("NonCachingSimpleCPU")
+is_o3_cpu = _subclass_tester("BaseO3CPU")

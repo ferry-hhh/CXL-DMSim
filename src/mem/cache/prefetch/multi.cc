@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019 ARM Limited
+ * Copyright (c) 2014, 2019, 2023 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -42,7 +42,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -54,10 +53,10 @@ Multi::Multi(const MultiPrefetcherParams &p)
 }
 
 void
-Multi::setCache(BaseCache *_cache)
+Multi::setParentInfo(System *sys, ProbeManager *pm, unsigned blk_size)
 {
     for (auto pf : prefetchers)
-        pf->setCache(_cache);
+        pf->setParentInfo(sys, pm, blk_size);
 }
 
 Tick

@@ -48,24 +48,30 @@ using namespace gem5;
  * @return The error string, if any.
  */
 std::string
-getSymbolError(const Loader::Symbol& symbol, const Loader::Symbol& expected)
+getSymbolError(const loader::Symbol& symbol, const loader::Symbol& expected)
 {
     std::stringstream ss;
 
-    if (symbol.binding != expected.binding) {
+    if (symbol.binding() != expected.binding()) {
         ss << "    symbols' bindings do not match: seen `" <<
-            (int)symbol.binding << "`, expected `" <<
-            (int)expected.binding << "`.\n";
+            (int)symbol.binding() << "`, expected `" <<
+            (int)expected.binding() << "`.\n";
     }
 
-    if (symbol.name != expected.name) {
-        ss << "    symbols' names do not match: seen `" << symbol.name <<
-            "`, expected `" << expected.name << "`.\n";
+    if (symbol.type() != expected.type()) {
+        ss << "    symbols' types do not match: seen `" <<
+            (int)symbol.type() << "`, expected `" <<
+            (int)expected.type() << "`.\n";
     }
 
-    if (symbol.address != expected.address) {
+    if (symbol.name() != expected.name()) {
+        ss << "    symbols' names do not match: seen `" << symbol.name() <<
+            "`, expected `" << expected.name() << "`.\n";
+    }
+
+    if (symbol.address() != expected.address()) {
         ss << "    symbols' addresses do not match: seen `" <<
-            symbol.address << "`, expected `" << expected.address << "`.\n";
+            symbol.address() << "`, expected `" << expected.address() << "`.\n";
     }
 
     // No error, symbols match
@@ -83,7 +89,7 @@ getSymbolError(const Loader::Symbol& symbol, const Loader::Symbol& expected)
  */
 ::testing::AssertionResult
 checkSymbol(const char* m_symbol, const char* m_expected,
-    const Loader::Symbol& symbol, const Loader::Symbol& expected)
+    const loader::Symbol& symbol, const loader::Symbol& expected)
 {
     const std::string error = getSymbolError(symbol, expected);
     if (!error.empty()) {
@@ -101,8 +107,8 @@ checkSymbol(const char* m_symbol, const char* m_expected,
  * @return A GTest's assertion result, with error message on failure.
  */
 ::testing::AssertionResult
-checkTable(const Loader::SymbolTable& symtab,
-    const std::initializer_list<Loader::Symbol>& expected)
+checkTable(const loader::SymbolTable& symtab,
+    const std::initializer_list<loader::Symbol>& expected)
 {
     if (expected.size() != (symtab.end() - symtab.begin())) {
         return ::testing::AssertionFailure() << "the number of symbols in "
@@ -126,7 +132,7 @@ checkTable(const Loader::SymbolTable& symtab,
 /** Test that the constructor creates an empty table. */
 TEST(LoaderSymtabTest, EmptyConstruction)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
     ASSERT_TRUE(symtab.empty());
     ASSERT_TRUE(checkTable(symtab, {}));
 }
@@ -134,9 +140,11 @@ TEST(LoaderSymtabTest, EmptyConstruction)
 /** Test that the insertion of a symbol with no name fails. */
 TEST(LoaderSymtabTest, InsertSymbolNoName)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbol = {Loader::Symbol::Binding::Local, "", 0x10};
+    loader::Symbol symbol = \
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "", 0x10};
     ASSERT_FALSE(symtab.insert(symbol));
     ASSERT_TRUE(checkTable(symtab, {}));
 }
@@ -144,9 +152,11 @@ TEST(LoaderSymtabTest, InsertSymbolNoName)
 /** Test that the insertion of one symbol in an empty table works. */
 TEST(LoaderSymtabTest, InsertOneSymbol)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbol = {Loader::Symbol::Binding::Local, "symbol", 0x10};
+    loader::Symbol symbol = \
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10};
     ASSERT_TRUE(symtab.insert(symbol));
 
     ASSERT_FALSE(symtab.empty());
@@ -156,12 +166,14 @@ TEST(LoaderSymtabTest, InsertOneSymbol)
 /** Test that the insertion of a symbol with an existing name fails. */
 TEST(LoaderSymtabTest, InsertSymbolExistingName)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
     const std::string name = "symbol";
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, name, 0x10},
-        {Loader::Symbol::Binding::Local, name, 0x20},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            name, 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            name, 0x20},
     };
     ASSERT_TRUE(symtab.insert(symbols[0]));
     ASSERT_FALSE(symtab.insert(symbols[1]));
@@ -173,12 +185,14 @@ TEST(LoaderSymtabTest, InsertSymbolExistingName)
 /** Test that the insertion of a symbol with an existing address works. */
 TEST(LoaderSymtabTest, InsertSymbolExistingAddress)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
     const Addr addr = 0x10;
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", addr},
-        {Loader::Symbol::Binding::Local, "symbol2", addr},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", addr},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", addr},
     };
     ASSERT_TRUE(symtab.insert(symbols[0]));
     ASSERT_TRUE(symtab.insert(symbols[1]));
@@ -190,12 +204,15 @@ TEST(LoaderSymtabTest, InsertSymbolExistingAddress)
 /** Test that the insertion of one symbol in a non-empty table works. */
 TEST(LoaderSymtabTest, InsertMultipleSymbols)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -209,12 +226,15 @@ TEST(LoaderSymtabTest, InsertMultipleSymbols)
  */
 TEST(LoaderSymtabTest, ClearMultiple)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -231,12 +251,15 @@ TEST(LoaderSymtabTest, ClearMultiple)
  */
 TEST(LoaderSymtabTest, Offset)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -249,10 +272,13 @@ TEST(LoaderSymtabTest, Offset)
     ASSERT_TRUE(checkTable(symtab, {symbols[0], symbols[1], symbols[2]}));
 
     // Check that the new table is offset
-    Loader::Symbol expected_symbols[] = {
-        {symbols[0].binding, symbols[0].name, symbols[0].address + offset},
-        {symbols[1].binding, symbols[1].name, symbols[1].address + offset},
-        {symbols[2].binding, symbols[2].name, symbols[2].address + offset},
+    loader::Symbol expected_symbols[] = {
+        {symbols[0].binding(), symbols[0].type(), symbols[0].name(),
+            symbols[0].address() + offset},
+        {symbols[1].binding(), symbols[1].type(), symbols[1].name(),
+            symbols[1].address() + offset},
+        {symbols[2].binding(), symbols[2].type(), symbols[2].name(),
+            symbols[2].address() + offset},
     };
     ASSERT_TRUE(checkTable(*symtab_new, {expected_symbols[0],
         expected_symbols[1], expected_symbols[2]}));
@@ -264,13 +290,17 @@ TEST(LoaderSymtabTest, Offset)
  */
 TEST(LoaderSymtabTest, Mask)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x1310},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x2810},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x2920},
-        {Loader::Symbol::Binding::Local, "symbol4", 0x3C20},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x1310},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x2810},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x2920},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol4", 0x3C20},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -285,11 +315,15 @@ TEST(LoaderSymtabTest, Mask)
         symbols[3]}));
 
     // Check that the new table is masked
-    Loader::Symbol expected_symbols[] = {
-        {symbols[0].binding, symbols[0].name, symbols[0].address & mask},
-        {symbols[1].binding, symbols[1].name, symbols[1].address & mask},
-        {symbols[2].binding, symbols[2].name, symbols[2].address & mask},
-        {symbols[3].binding, symbols[3].name, symbols[3].address & mask},
+    loader::Symbol expected_symbols[] = {
+        {symbols[0].binding(), symbols[0].type(), symbols[0].name(),
+            symbols[0].address() & mask},
+        {symbols[1].binding(), symbols[1].type(), symbols[1].name(),
+            symbols[1].address() & mask},
+        {symbols[2].binding(), symbols[2].type(), symbols[2].name(),
+            symbols[2].address() & mask},
+        {symbols[3].binding(), symbols[3].type(), symbols[3].name(),
+            symbols[3].address() & mask},
     };
     ASSERT_TRUE(checkTable(*symtab_new, {expected_symbols[0],
         expected_symbols[1], expected_symbols[2], expected_symbols[3]}));
@@ -301,13 +335,17 @@ TEST(LoaderSymtabTest, Mask)
  */
 TEST(LoaderSymtabTest, Rename)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
-        {Loader::Symbol::Binding::Local, "symbol4", 0x40},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol4", 0x40},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -315,18 +353,22 @@ TEST(LoaderSymtabTest, Rename)
     EXPECT_TRUE(symtab.insert(symbols[3]));
 
     const auto symtab_new =
-        symtab.rename([](std::string &name) { name = name + "_suffix"; });
+        symtab.rename([](const std::string &name) { return name + "_suffix"; });
 
     // Check that the original table is not modified
     ASSERT_TRUE(checkTable(symtab, {symbols[0], symbols[1], symbols[2],
         symbols[3]}));
 
     // Check that the new table's symbols have been renamed
-    Loader::Symbol expected_symbols[] = {
-        {symbols[0].binding, symbols[0].name + "_suffix", symbols[0].address},
-        {symbols[1].binding, symbols[1].name + "_suffix", symbols[1].address},
-        {symbols[2].binding, symbols[2].name + "_suffix", symbols[2].address},
-        {symbols[3].binding, symbols[3].name + "_suffix", symbols[3].address},
+    loader::Symbol expected_symbols[] = {
+        {symbols[0].binding(), symbols[0].type(), symbols[0].name() + "_suffix",
+            symbols[0].address()},
+        {symbols[1].binding(), symbols[1].type(), symbols[1].name() + "_suffix",
+            symbols[1].address()},
+        {symbols[2].binding(), symbols[2].type(), symbols[2].name() + "_suffix",
+            symbols[2].address()},
+        {symbols[3].binding(), symbols[3].type(), symbols[3].name() + "_suffix",
+            symbols[3].address()},
     };
     ASSERT_TRUE(checkTable(*symtab_new, {expected_symbols[0],
         expected_symbols[1], expected_symbols[2], expected_symbols[3]}));
@@ -338,13 +380,17 @@ TEST(LoaderSymtabTest, Rename)
  */
 TEST(LoaderSymtabTest, RenameNonUnique)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
-        {Loader::Symbol::Binding::Local, "symbol4", 0x40},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol4", 0x40},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -352,10 +398,12 @@ TEST(LoaderSymtabTest, RenameNonUnique)
     EXPECT_TRUE(symtab.insert(symbols[3]));
 
     int i = 0;
-    const auto symtab_new = symtab.rename([&i](std::string &name)
+    const auto symtab_new = symtab.rename([&i](const std::string &name)
         {
             if ((i++ % 2) == 0) {
-                name = "NonUniqueName";
+                return std::string("NonUniqueName");
+            } else {
+                return name;
             }
         });
 
@@ -365,10 +413,13 @@ TEST(LoaderSymtabTest, RenameNonUnique)
 
     // Check that the new table's symbols have been renamed, yet it does not
     // contain the symbols with duplicated names
-    Loader::Symbol expected_symbols[] = {
-        {symbols[0].binding, "NonUniqueName", symbols[0].address},
-        {symbols[1].binding, symbols[1].name, symbols[1].address},
-        {symbols[3].binding, symbols[3].name, symbols[3].address},
+    loader::Symbol expected_symbols[] = {
+        {symbols[0].binding(), symbols[0].type(), "NonUniqueName",
+            symbols[0].address()},
+        {symbols[1].binding(), symbols[1].type(), symbols[1].name(),
+            symbols[1].address()},
+        {symbols[3].binding(), symbols[3].type(), symbols[3].name(),
+            symbols[3].address()},
     };
     ASSERT_TRUE(checkTable(*symtab_new, {expected_symbols[0],
         expected_symbols[1], expected_symbols[2]}));
@@ -380,14 +431,19 @@ TEST(LoaderSymtabTest, RenameNonUnique)
  */
 TEST(LoaderSymtabTest, Globals)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Global, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
-        {Loader::Symbol::Binding::Weak, "symbol4", 0x40},
-        {Loader::Symbol::Binding::Weak, "symbol5", 0x50}
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
+        {loader::Symbol::Binding::Weak, loader::Symbol::SymbolType::Other,
+            "symbol4", 0x40},
+        {loader::Symbol::Binding::Weak, loader::Symbol::SymbolType::Other,
+            "symbol5", 0x50}
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -411,14 +467,19 @@ TEST(LoaderSymtabTest, Globals)
  */
 TEST(LoaderSymtabTest, Locals)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Global, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
-        {Loader::Symbol::Binding::Weak, "symbol4", 0x40},
-        {Loader::Symbol::Binding::Weak, "symbol5", 0x50}
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
+        {loader::Symbol::Binding::Weak, loader::Symbol::SymbolType::Other,
+            "symbol4", 0x40},
+        {loader::Symbol::Binding::Weak, loader::Symbol::SymbolType::Other,
+            "symbol5", 0x50}
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -442,14 +503,19 @@ TEST(LoaderSymtabTest, Locals)
  */
 TEST(LoaderSymtabTest, Weaks)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Global, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
-        {Loader::Symbol::Binding::Weak, "symbol4", 0x40},
-        {Loader::Symbol::Binding::Weak, "symbol5", 0x50}
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
+        {loader::Symbol::Binding::Weak, loader::Symbol::SymbolType::Other,
+            "symbol4", 0x40},
+        {loader::Symbol::Binding::Weak, loader::Symbol::SymbolType::Other,
+            "symbol5", 0x50}
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -467,12 +533,50 @@ TEST(LoaderSymtabTest, Weaks)
     ASSERT_TRUE(checkTable(*symtab_new, {symbols[3], symbols[4]}));
 }
 
+/**
+ * Test the creation of a new filtered table containing only function symbols
+ * of the original table. Also verifies if the original table is kept the same.
+ */
+TEST(LoaderSymtabTest, FunctionSymbols)
+{
+    loader::SymbolTable symtab;
+
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::NoType,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::File,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::Function,
+            "symbol3", 0x30},
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::Object,
+            "symbol4", 0x40},
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::Function,
+            "symbol5", 0x50}
+    };
+    EXPECT_TRUE(symtab.insert(symbols[0]));
+    EXPECT_TRUE(symtab.insert(symbols[1]));
+    EXPECT_TRUE(symtab.insert(symbols[2]));
+    EXPECT_TRUE(symtab.insert(symbols[3]));
+    EXPECT_TRUE(symtab.insert(symbols[4]));
+
+    const auto symtab_new = symtab.functionSymbols();
+
+    // Check that the original table is not modified
+    ASSERT_TRUE(checkTable(symtab, {symbols[0], symbols[1], symbols[2],
+        symbols[3], symbols[4]}));
+
+    // Check that the new table only contains function symbols
+    ASSERT_TRUE(checkTable(*symtab_new, {symbols[2], symbols[4]}));
+}
+
 /** Test searching for a non-existent address. */
 TEST(LoaderSymtabTest, FindNonExistentAddress)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbol = {Loader::Symbol::Binding::Local, "symbol", 0x10};
+    loader::Symbol symbol = \
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10};
     EXPECT_TRUE(symtab.insert(symbol));
 
     ASSERT_EQ(symtab.find(0x0), symtab.end());
@@ -481,18 +585,21 @@ TEST(LoaderSymtabTest, FindNonExistentAddress)
 /** Test searching for a unique address. */
 TEST(LoaderSymtabTest, FindUniqueAddress)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
     EXPECT_TRUE(symtab.insert(symbols[2]));
 
-    const auto it = symtab.find(symbols[2].address);
+    const auto it = symtab.find(symbols[2].address());
     ASSERT_NE(it, symtab.end());
     ASSERT_PRED_FORMAT2(checkSymbol, *it, symbols[2]);
 }
@@ -502,19 +609,22 @@ TEST(LoaderSymtabTest, FindUniqueAddress)
  */
 TEST(LoaderSymtabTest, FindNonUniqueAddress)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
     const Addr addr = 0x20;
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", addr},
-        {Loader::Symbol::Binding::Local, "symbol3", addr},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", addr},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", addr},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
     EXPECT_TRUE(symtab.insert(symbols[2]));
 
-    const auto it = symtab.find(symbols[1].address);
+    const auto it = symtab.find(symbols[1].address());
     ASSERT_NE(it, symtab.end());
     ASSERT_PRED_FORMAT2(checkSymbol, *it, symbols[1]);
 }
@@ -522,9 +632,11 @@ TEST(LoaderSymtabTest, FindNonUniqueAddress)
 /** Test searching for a non-existent name. */
 TEST(LoaderSymtabTest, FindNonExistentName)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbol = {Loader::Symbol::Binding::Local, "symbol", 0x10};
+    loader::Symbol symbol = \
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10};
     EXPECT_TRUE(symtab.insert(symbol));
 
     const auto it = symtab.find("symbol2");
@@ -534,18 +646,21 @@ TEST(LoaderSymtabTest, FindNonExistentName)
 /** Test searching for an existing name. */
 TEST(LoaderSymtabTest, FindExistingName)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
     EXPECT_TRUE(symtab.insert(symbols[2]));
 
-    const auto it = symtab.find(symbols[1].name);
+    const auto it = symtab.find(symbols[1].name());
     ASSERT_NE(it, symtab.end());
     ASSERT_PRED_FORMAT2(checkSymbol, *it, symbols[1]);
 }
@@ -553,16 +668,18 @@ TEST(LoaderSymtabTest, FindExistingName)
 /** Test searching for an existent address using findNearest. */
 TEST(LoaderSymtabTest, FindNearestExact)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
 
-    const auto it = symtab.findNearest(symbols[1].address);
+    const auto it = symtab.findNearest(symbols[1].address());
     ASSERT_NE(it, symtab.end());
     ASSERT_PRED_FORMAT2(checkSymbol, *it, symbols[1]);
 }
@@ -573,12 +690,14 @@ TEST(LoaderSymtabTest, FindNearestExact)
  */
 TEST(LoaderSymtabTest, FindNearestRound)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbol = {Loader::Symbol::Binding::Local, "symbol", 0x10};
+    loader::Symbol symbol = \
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10};
     EXPECT_TRUE(symtab.insert(symbol));
 
-    const auto it = symtab.findNearest(symbol.address + 0x1);
+    const auto it = symtab.findNearest(symbol.address() + 0x1);
     ASSERT_NE(it, symtab.end());
     ASSERT_PRED_FORMAT2(checkSymbol, *it, symbol);
 }
@@ -590,20 +709,22 @@ TEST(LoaderSymtabTest, FindNearestRound)
  */
 TEST(LoaderSymtabTest, FindNearestRoundWithNext)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
 
     Addr next_addr;
-    const auto it = symtab.findNearest(symbols[0].address + 0x1, next_addr);
+    const auto it = symtab.findNearest(symbols[0].address() + 0x1, next_addr);
     ASSERT_NE(it, symtab.end());
     ASSERT_PRED_FORMAT2(checkSymbol, *it, symbols[0]);
-    ASSERT_EQ(next_addr, symbols[1].address);
+    ASSERT_EQ(next_addr, symbols[1].address());
 }
 
 /**
@@ -613,13 +734,15 @@ TEST(LoaderSymtabTest, FindNearestRoundWithNext)
  */
 TEST(LoaderSymtabTest, FindNearestRoundWithNextNonExistent)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbol = {Loader::Symbol::Binding::Local, "symbol", 0x10};
+    loader::Symbol symbol = \
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10};
     EXPECT_TRUE(symtab.insert(symbol));
 
     Addr next_addr;
-    const auto it = symtab.findNearest(symbol.address + 0x1, next_addr);
+    const auto it = symtab.findNearest(symbol.address() + 0x1, next_addr);
     ASSERT_NE(it, symtab.end());
     ASSERT_PRED_FORMAT2(checkSymbol, *it, symbol);
     ASSERT_EQ(next_addr, 0);
@@ -631,12 +754,14 @@ TEST(LoaderSymtabTest, FindNearestRoundWithNextNonExistent)
  */
 TEST(LoaderSymtabTest, FindNearestNonExistent)
 {
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
 
-    Loader::Symbol symbol = {Loader::Symbol::Binding::Local, "symbol", 0x10};
+    loader::Symbol symbol = \
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10};
     EXPECT_TRUE(symtab.insert(symbol));
 
-    const auto it = symtab.findNearest(symbol.address - 0x1);
+    const auto it = symtab.findNearest(symbol.address() - 0x1);
     ASSERT_EQ(it, symtab.end());
 }
 
@@ -647,23 +772,28 @@ TEST(LoaderSymtabTest, FindNearestNonExistent)
 TEST(LoaderSymtabTest, InsertTableConflicting)
 {
     const std::string name = "symbol";
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, name, 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
-        {Loader::Symbol::Binding::Local, "symbol4", 0x40},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            name, 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol4", 0x40},
         // Introduce name conflict
-        {Loader::Symbol::Binding::Local, name, 0x50},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            name, 0x50},
     };
 
     // Populate table 1
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
     EXPECT_TRUE(symtab.insert(symbols[2]));
 
     // Populate table 2
-    Loader::SymbolTable symtab2;
+    loader::SymbolTable symtab2;
     EXPECT_TRUE(symtab2.insert(symbols[3]));
     EXPECT_TRUE(symtab2.insert(symbols[4]));
 
@@ -681,22 +811,27 @@ TEST(LoaderSymtabTest, InsertTableConflicting)
  */
 TEST(LoaderSymtabTest, InsertTable)
 {
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
-        {Loader::Symbol::Binding::Local, "symbol4", 0x40},
-        {Loader::Symbol::Binding::Local, "symbol5", 0x50},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol4", 0x40},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol5", 0x50},
     };
 
     // Populate table 1
-    Loader::SymbolTable symtab;
+    loader::SymbolTable symtab;
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
     EXPECT_TRUE(symtab.insert(symbols[2]));
 
     // Populate table 2
-    Loader::SymbolTable symtab2;
+    loader::SymbolTable symtab2;
     EXPECT_TRUE(symtab2.insert(symbols[3]));
     EXPECT_TRUE(symtab2.insert(symbols[4]));
 
@@ -717,11 +852,14 @@ using LoaderSymtabSerializationFixture = SerializationFixture;
 TEST_F(LoaderSymtabSerializationFixture, Serialization)
 {
     // Populate the table
-    Loader::SymbolTable symtab;
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::SymbolTable symtab;
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     EXPECT_TRUE(symtab.insert(symbols[0]));
     EXPECT_TRUE(symtab.insert(symbols[1]));
@@ -735,24 +873,33 @@ TEST_F(LoaderSymtabSerializationFixture, Serialization)
     // Verify the output
     ASSERT_THAT(cp.str(), ::testing::StrEq("\n[Section1]\ntest.size=3\n"
         "test.addr_0=16\ntest.symbol_0=symbol\ntest.binding_0=1\n"
+        "test.type_0=5\n"
         "test.addr_1=32\ntest.symbol_1=symbol2\ntest.binding_1=1\n"
-        "test.addr_2=48\ntest.symbol_2=symbol3\ntest.binding_2=1\n"));
+        "test.type_1=5\n"
+        "test.addr_2=48\ntest.symbol_2=symbol3\ntest.binding_2=1\n"
+        "test.type_2=5\n"));
 }
 
 /** Test unserialization. */
 TEST_F(LoaderSymtabSerializationFixture, Unserialization)
 {
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Local, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     simulateSerialization("\n[Section1]\ntest.size=3\n"
         "test.addr_0=16\ntest.symbol_0=symbol\ntest.binding_0=1\n"
+        "test.type_0=5\n"
         "test.addr_1=32\ntest.symbol_1=symbol2\ntest.binding_1=1\n"
-        "test.addr_2=48\ntest.symbol_2=symbol3\ntest.binding_2=1\n");
+        "test.type_1=5\n"
+        "test.addr_2=48\ntest.symbol_2=symbol3\ntest.binding_2=1\n"
+        "test.type_2=5\n");
 
-    Loader::SymbolTable unserialized_symtab;
+    loader::SymbolTable unserialized_symtab;
     CheckpointIn cp(getDirName());
     Serializable::ScopedCheckpointSection scs(cp, "Section1");
     unserialized_symtab.unserialize("test", cp);
@@ -770,17 +917,22 @@ TEST_F(LoaderSymtabSerializationFixture, Unserialization)
  */
 TEST_F(LoaderSymtabSerializationFixture, UnserializationMissingBinding)
 {
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Global, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Global, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     simulateSerialization("\n[Section1]\ntest.size=3\n"
         "test.addr_0=16\ntest.symbol_0=symbol\ntest.binding_0=1\n"
-        "test.addr_1=32\ntest.symbol_1=symbol2\n"
-        "test.addr_2=48\ntest.symbol_2=symbol3\ntest.binding_2=1\n");
+        "test.type_0=5\n"
+        "test.addr_1=32\ntest.symbol_1=symbol2\ntest.type_1=5\n"
+        "test.addr_2=48\ntest.symbol_2=symbol3\ntest.binding_2=1\n"
+        "test.type_2=5\n");
 
-    Loader::SymbolTable unserialized_symtab;
+    loader::SymbolTable unserialized_symtab;
     CheckpointIn cp(getDirName());
     Serializable::ScopedCheckpointSection scs(cp, "Section1");
 
@@ -800,22 +952,28 @@ TEST_F(LoaderSymtabSerializationFixture, UnserializationMissingBinding)
 TEST_F(LoaderSymtabSerializationFixture,
     UnserializationMissingBindingChangeDefault)
 {
-    Loader::Symbol symbols[] = {
-        {Loader::Symbol::Binding::Local, "symbol", 0x10},
-        {Loader::Symbol::Binding::Weak, "symbol2", 0x20},
-        {Loader::Symbol::Binding::Local, "symbol3", 0x30},
+    loader::Symbol symbols[] = {
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol", 0x10},
+        {loader::Symbol::Binding::Weak, loader::Symbol::SymbolType::Other,
+            "symbol2", 0x20},
+        {loader::Symbol::Binding::Local, loader::Symbol::SymbolType::Other,
+            "symbol3", 0x30},
     };
     simulateSerialization("\n[Section1]\ntest.size=3\n"
         "test.addr_0=16\ntest.symbol_0=symbol\ntest.binding_0=1\n"
+        "test.type_0=5\n"
         "test.addr_1=32\ntest.symbol_1=symbol2\n"
-        "test.addr_2=48\ntest.symbol_2=symbol3\ntest.binding_2=1\n");
+        "test.type_1=5\n"
+        "test.addr_2=48\ntest.symbol_2=symbol3\ntest.binding_2=1\n"
+        "test.type_2=5\n");
 
-    Loader::SymbolTable unserialized_symtab;
+    loader::SymbolTable unserialized_symtab;
     CheckpointIn cp(getDirName());
     Serializable::ScopedCheckpointSection scs(cp, "Section1");
 
     unserialized_symtab.unserialize("test", cp,
-        Loader::Symbol::Binding::Weak);
+        loader::Symbol::Binding::Weak);
 
     // Make sure that the symbols in symtab are present in the
     // unserialized table

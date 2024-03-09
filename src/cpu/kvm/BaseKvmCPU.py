@@ -33,12 +33,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.SimObject import *
-from m5.params import *
-from m5.proxy import *
-
 from m5.objects.BaseCPU import BaseCPU
 from m5.objects.KvmVM import KvmVM
+from m5.params import *
+from m5.proxy import *
+from m5.SimObject import *
 
 
 class BaseKvmCPU(BaseCPU):
@@ -64,6 +63,11 @@ class BaseKvmCPU(BaseCPU):
     def support_take_over(cls):
         return True
 
+    usePerf = Param.Bool(
+        True,
+        "Use perf for gathering statistics from the guest and providing "
+        "statistic-related functionalities",
+    )
     useCoalescedMMIO = Param.Bool(False, "Use coalesced MMIO (EXPERIMENTAL)")
     usePerfOverflow = Param.Bool(
         False, "Use perf event overflow counters (EXPERIMENTAL)"

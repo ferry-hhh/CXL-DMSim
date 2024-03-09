@@ -60,7 +60,6 @@
 namespace gem5
 {
 
-GEM5_DEPRECATED_NAMESPACE(Prefetcher, prefetch);
 namespace prefetch
 {
 
@@ -119,7 +118,8 @@ Stride::allocateNewContext(int context)
 
 void
 Stride::calculatePrefetch(const PrefetchInfo &pfi,
-                                    std::vector<AddrPriority> &addresses)
+                                    std::vector<AddrPriority> &addresses,
+                                    const CacheAccessor &cache)
 {
     if (!pfi.hasPC()) {
         DPRINTF(HWPrefetch, "Ignoring request with no PC.\n");

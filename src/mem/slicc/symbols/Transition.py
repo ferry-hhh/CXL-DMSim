@@ -25,8 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from slicc.symbols.Symbol import Symbol
 from slicc.symbols.State import WildcardState
+from slicc.symbols.Symbol import Symbol
 
 
 class Transition(Symbol):
@@ -41,7 +41,7 @@ class Transition(Symbol):
         request_types,
         location,
     ):
-        ident = "%s|%s" % (state, event)
+        ident = f"{state}|{event}"
         super().__init__(table, ident, location)
 
         self.state = machine.states[state]
@@ -72,7 +72,7 @@ class Transition(Symbol):
                 self.resources[var] = str(num)
 
     def __repr__(self):
-        return "[Transition: (%r, %r) -> %r, %r]" % (
+        return "[Transition: ({!r}, {!r}) -> {!r}, {!r}]".format(
             self.state,
             self.event,
             self.nextState,

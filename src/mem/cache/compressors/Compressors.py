@@ -24,12 +24,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects.IndexingPolicies import *
+from m5.objects.ReplacementPolicies import *
 from m5.params import *
 from m5.proxy import *
 from m5.SimObject import *
-
-from m5.objects.IndexingPolicies import *
-from m5.objects.ReplacementPolicies import *
 
 
 class BaseCacheCompressor(SimObject):
@@ -232,7 +231,7 @@ class FrequentValuesCompressor(BaseCacheCompressor):
     )
     check_saturation = Param.Bool(
         False,
-        "Whether the counters should be " "manipulated in case of saturation.",
+        "Whether the counters should be manipulated in case of saturation.",
     )
 
     vft_assoc = Param.Int(16, "Associativity of the VFT.")

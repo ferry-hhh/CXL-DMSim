@@ -1,4 +1,16 @@
 /*
+ * Copyright (c) 2023 Arm Limited
+ * All rights reserved
+ *
+ * The license below extends only to copyright in the software and shall
+ * not be construed as granting a license to any other intellectual
+ * property including but not limited to intellectual property relating
+ * to a hardware implementation of the functionality of the software
+ * licensed hereunder.  You may use the software subject to the license
+ * terms below provided that you ensure that this notice is replicated
+ * unmodified and in its entirety in all distributions of the software,
+ * modified or unmodified, in source code or in binary form.
+ *
  * Copyright (c) 2006-2009 The Regents of The University of Michigan
  * All rights reserved.
  *
@@ -39,19 +51,25 @@ namespace gem5
 namespace trace {
 
 NativeTrace::NativeTrace(const Params &p)
-    : ExeTracer(p)
+    : ExeTracer(p), native_listener(listenSocketInetConfig(8000).build(p.name))
 {
     if (ListenSocket::allDisabled())
         fatal("All listeners are disabled!");
 
-    int port = 8000;
-    while (!native_listener.listen(port, true))
-    {
-        DPRINTF(GDBMisc, "Can't bind port %d\n", port);
-        port++;
-    }
-    ccprintf(std::cerr, "Listening for native process on port %d\n", port);
-    fd = native_listener.accept();
+    native_listener->listen();
+
+    fd = native_listener->accept();
+}
+
+NativeTraceRecord::NativeTraceRecord(
+        NativeTrace *_parent,
+        Tick _when, ThreadContext *_thread,
+        const StaticInstPtr _staticInst, const PCStateBase &_pc,
+        const StaticInstPtr _macroStaticInst)
+  : ExeTracerRecord(_when, _thread, _staticInst, _pc,
+                    *_parent, _macroStaticInst),
+    parent(_parent)
+{
 }
 
 void

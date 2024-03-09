@@ -37,6 +37,7 @@
 #include "base/sat_counter.hh"
 #include "base/types.hh"
 #include "mem/cache/base.hh"
+#include "mem/cache/cache_probe_arg.hh"
 #include "mem/cache/compressors/base.hh"
 #include "mem/cache/compressors/encoders/huffman.hh"
 #include "mem/cache/prefetch/associative_set.hh"
@@ -48,7 +49,6 @@ namespace gem5
 
 struct FrequentValuesCompressorParams;
 
-GEM5_DEPRECATED_NAMESPACE(Compressor, compression);
 namespace compression
 {
 
@@ -64,7 +64,7 @@ class FrequentValues : public Base
   private:
     class CompData;
 
-    using DataUpdate = BaseCache::DataUpdate;
+    using DataUpdate = CacheDataUpdateProbeArg;
 
     class FrequentValuesListener : public ProbeListenerArgBase<DataUpdate>
     {

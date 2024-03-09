@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2022 Arm Limited
+ * Copyright (c) 2010-2023 Arm Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -54,7 +54,7 @@ namespace ArmISA
         Bitfield<28> v;
         Bitfield<27> q;
         Bitfield<26, 25> it1;
-        Bitfield<24> j;
+        Bitfield<24> dit;       // AArch64
         Bitfield<23> uao;       // AArch64
         Bitfield<22> pan;
         Bitfield<21> ss;        // AArch64
@@ -74,6 +74,33 @@ namespace ArmISA
         Bitfield<4, 0> mode;
         Bitfield<0> sp;         // AArch64
     EndBitUnion(CPSR)
+
+    BitUnion32(ISR)
+        Bitfield<8> a;
+        Bitfield<7> i;
+        Bitfield<6> f;
+    EndBitUnion(ISR)
+
+    BitUnion32(ISAR5)
+        Bitfield<31, 28> vcma;
+        Bitfield<27, 24> rdm;
+        Bitfield<19, 16> crc32;
+        Bitfield<15, 12> sha2;
+        Bitfield<11, 8> sha1;
+        Bitfield<7, 4> aes;
+        Bitfield<3, 0> sevl;
+    EndBitUnion(ISAR5)
+
+    BitUnion32(ISAR6)
+        Bitfield<31, 28> clrbhb;
+        Bitfield<27, 24> i8mm;
+        Bitfield<23, 20> bf16;
+        Bitfield<19, 16> specres;
+        Bitfield<15, 12> sb;
+        Bitfield<11, 8> fhm;
+        Bitfield<7, 4> dp;
+        Bitfield<3, 0> jscvt;
+    EndBitUnion(ISAR6)
 
     BitUnion64(AA64DFR0)
         Bitfield<43, 40> tracefilt;
@@ -97,14 +124,16 @@ namespace ArmISA
         Bitfield<39, 36> sm3;
         Bitfield<35, 32> sha3;
         Bitfield<31, 28> rdm;
+        Bitfield<27, 24> tme;
         Bitfield<23, 20> atomic;
         Bitfield<19, 16> crc32;
         Bitfield<15, 12> sha2;
         Bitfield<11, 8> sha1;
-        Bitfield<3, 0> aes;
+        Bitfield<7, 4> aes;
     EndBitUnion(AA64ISAR0)
 
     BitUnion64(AA64ISAR1)
+        Bitfield<55, 52> i8mm;
         Bitfield<43, 40> specres;
         Bitfield<39, 36> sb;
         Bitfield<35, 32> frintts;
@@ -135,6 +164,7 @@ namespace ArmISA
     EndBitUnion(AA64MMFR0)
 
     BitUnion64(AA64MMFR1)
+        Bitfield<43, 40> hcx;
         Bitfield<31, 28> xnx;
         Bitfield<27, 24> specsei;
         Bitfield<23, 20> pan;
@@ -163,6 +193,21 @@ namespace ArmISA
         Bitfield<3, 0> cnp;
     EndBitUnion(AA64MMFR2)
 
+    BitUnion64(AA64MMFR3)
+        Bitfield<47, 44> anerr;
+        Bitfield<43, 40> snerr;
+        Bitfield<39, 36> d128_2;
+        Bitfield<35, 32> d128;
+        Bitfield<31, 28> mec;
+        Bitfield<27, 24> aie;
+        Bitfield<23, 20> s2poe;
+        Bitfield<19, 16> s1poe;
+        Bitfield<15, 12> s2pie;
+        Bitfield<11, 8> s1pie;
+        Bitfield<7, 4> sctlrx;
+        Bitfield<3, 0> tcrx;
+    EndBitUnion(AA64MMFR3)
+
     BitUnion64(AA64PFR0)
         Bitfield<63, 60> csv3;
         Bitfield<59, 56> csv2;
@@ -180,6 +225,30 @@ namespace ArmISA
         Bitfield<7, 4> el1;
         Bitfield<3, 0> el0;
     EndBitUnion(AA64PFR0)
+
+    BitUnion64(AA64ZFR0)
+        Bitfield<59, 56> f64mm;
+        Bitfield<55, 52> f32mm;
+        Bitfield<47, 44> i8mm;
+        Bitfield<43, 40> sm4;
+        Bitfield<35, 32> sha3;
+        Bitfield<27, 24> b16b16;
+        Bitfield<23, 20> bf16;
+        Bitfield<19, 16> bitPerm;
+        Bitfield<7, 4> aes;
+        Bitfield<3, 0> sveVer;
+    EndBitUnion(AA64ZFR0)
+
+    BitUnion64(AA64SMFR0)
+        Bitfield<63> fa64;
+        Bitfield<59, 56> smEver;
+        Bitfield<55, 52> i16i64;
+        Bitfield<48> f64f64;
+        Bitfield<39, 36> i8i32;
+        Bitfield<35> f16f32;
+        Bitfield<34> b16f32;
+        Bitfield<32> f32f32;
+    EndBitUnion(AA64SMFR0)
 
     BitUnion32(HDCR)
         Bitfield<27>   tdcc;
@@ -312,7 +381,12 @@ namespace ArmISA
         Bitfield<0>  cp0;
     EndBitUnion(NSACR)
 
-    BitUnion32(SCR)
+    BitUnion64(SCR)
+        Bitfield<44> sctlr2En;
+        Bitfield<43> tcr2En;
+        Bitfield<40> trndr;
+        Bitfield<38> hxen;
+        Bitfield<27> fgten;
         Bitfield<21> fien;
         Bitfield<20> nmea;
         Bitfield<19> ease;
@@ -338,7 +412,7 @@ namespace ArmISA
         Bitfield<0> ns;
     EndBitUnion(SCR)
 
-    BitUnion32(SCTLR)
+    BitUnion64(SCTLR)
         Bitfield<31>   enia;    // ARMv8.3 PAuth
         Bitfield<30>   enib;    // ARMv8.3 PAuth
         Bitfield<30>   te;      // Thumb Exception Enable (AArch32 only)
@@ -389,8 +463,6 @@ namespace ArmISA
         Bitfield<7>    itd;     // IT disable
                                 // (ARMv8 AArch32 and AArch64 SCTLR_EL1 only)
         Bitfield<6, 3> rao4;    // Read as one
-        Bitfield<6>    thee;    // ThumbEE enable
-                                // (ARMv8 AArch32 and AArch64 SCTLR_EL1 only)
         Bitfield<5>    cp15ben; // CP15 barrier enable
                                 // (AArch32 and AArch64 SCTLR_EL1 only)
         Bitfield<4>    sa0;     // Stack Alignment Check Enable for EL0
@@ -416,6 +488,7 @@ namespace ArmISA
         Bitfield<21, 20> cp10;
         Bitfield<21, 20> fpen;  // AArch64
         Bitfield<23, 22> cp11;
+        Bitfield<25, 24> smen; // SME
         Bitfield<25, 24> cp12;
         Bitfield<27, 26> cp13;
         Bitfield<29, 28> rsvd;
@@ -734,10 +807,14 @@ namespace ArmISA
         Bitfield<31> tcpac;
         Bitfield<30> tam;
         Bitfield<28> tta_e2h;
+        Bitfield<25, 24> smen;
         Bitfield<21, 20> fpen;
         Bitfield<20> tta;
         Bitfield<17, 16> zen;
-        Bitfield<13, 12> res1_13_12_el2;
+        Bitfield<13, 13> res1_13_el2;
+        Bitfield<12, 12> res1_12_el2;
+        Bitfield<12> esm;  // SME (CPTR_EL3)
+        Bitfield<12> tsm;  // SME (CPTR_EL2)
         Bitfield<10> tfp;
         Bitfield<9> res1_9_el2;
         Bitfield<8> res1_8_el2;
@@ -749,6 +826,34 @@ namespace ArmISA
     BitUnion64(ZCR)
         Bitfield<3, 0> len;
     EndBitUnion(ZCR)
+
+    BitUnion64(SMCR)
+        Bitfield<63, 32> res0_63_32;
+        Bitfield<31, 31> fa64;
+        Bitfield<30, 9> res0_30_9;
+        Bitfield<8, 4> razwi_8_4;
+        Bitfield<3, 0> len;
+    EndBitUnion(SMCR)
+
+    BitUnion64(SVCR)
+        Bitfield<63, 2> res0_63_2;
+        Bitfield<1, 1> za;
+        Bitfield<0, 0> sm;
+    EndBitUnion(SVCR)
+
+    BitUnion64(SMIDR)
+        Bitfield<63, 32> res0_63_32;
+        Bitfield<31, 24> implementer;
+        Bitfield<23, 16> revision;
+        Bitfield<15, 15> smps;
+        Bitfield<14, 12> res0_14_12;
+        Bitfield<11, 0>  affinity;
+    EndBitUnion(SMIDR)
+
+    BitUnion64(SMPRI)
+        Bitfield<63, 4> res0_63_4;
+        Bitfield<3, 0> priority;
+    EndBitUnion(SMPRI)
 
    BitUnion32(OSL)
         Bitfield<64, 4> res0;
@@ -847,6 +952,122 @@ namespace ArmISA
         Bitfield<7,4>   wpaddrmask;
         Bitfield<3,0>   pcsample;
    EndBitUnion(DEVID)
+
+    BitUnion64(HFGITR)
+        Bitfield<54> dccvac;
+        Bitfield<53> svcEL1;
+        Bitfield<52> svcEL0;
+        Bitfield<51> eret;
+        Bitfield<47> tlbivaale1;
+        Bitfield<46> tlbivale1;
+        Bitfield<45> tlbivaae1;
+        Bitfield<44> tlbiaside1;
+        Bitfield<43> tlbivae1;
+        Bitfield<42> tlbivmalle1;
+        Bitfield<41> tlbirvaale1;
+        Bitfield<40> tlbirvale1;
+        Bitfield<39> tlbirvaae1;
+        Bitfield<38> tlbirvae1;
+        Bitfield<37> tlbirvaale1is;
+        Bitfield<36> tlbirvale1is;
+        Bitfield<35> tlbirvaae1is;
+        Bitfield<34> tlbirvae1is;
+        Bitfield<33> tlbivaale1is;
+        Bitfield<32> tlbivale1is;
+        Bitfield<31> tlbivaae1is;
+        Bitfield<30> tlbiaside1is;
+        Bitfield<29> tlbivae1is;
+        Bitfield<28> tlbivmalle1is;
+        Bitfield<27> tlbirvaale1os;
+        Bitfield<26> tlbirvale1os;
+        Bitfield<25> tlbirvaae1os;
+        Bitfield<24> tlbirvae1os;
+        Bitfield<23> tlbivaale1os;
+        Bitfield<22> tlbivale1os;
+        Bitfield<21> tlbivaae1os;
+        Bitfield<20> tlbiaside1os;
+        Bitfield<19> tlbivae1os;
+        Bitfield<18> tlbivmalle1os;
+        Bitfield<17> ats1e1wp;
+        Bitfield<16> ats1e1rp;
+        Bitfield<15> ats1e0w;
+        Bitfield<14> ats1e0r;
+        Bitfield<13> ats1e1w;
+        Bitfield<12> ats1e1r;
+        Bitfield<11> dczva;
+        Bitfield<10> dccivac;
+        Bitfield<9> dccvapd;
+        Bitfield<8> dccvap;
+        Bitfield<7> dccvau;
+        Bitfield<6> dccisw;
+        Bitfield<5> dccsw;
+        Bitfield<4> dcisw;
+        Bitfield<3> dcivac;
+        Bitfield<2> icivau;
+        Bitfield<1> iciallu;
+        Bitfield<0> icialluis;
+    EndBitUnion(HFGITR)
+
+    // HFGRTR and HFGWTR. Some fields are
+    // for HFGRTR only (RO registers)
+    BitUnion64(HFGTR)
+        Bitfield<50> nAccdataEL1;
+        Bitfield<49> erxaddrEL1;
+        Bitfield<48> erxpfgcdnEL1;
+        Bitfield<47> erxpfgctlEL1;
+        Bitfield<46> erxpfgfEL1; // RES0 for HFGWTR
+        Bitfield<45> erxmiscNEL1;
+        Bitfield<44> erxstatusEL1;
+        Bitfield<43> erxctlrEL1;
+        Bitfield<42> erxfrEL1;
+        Bitfield<41> errselrEL1;
+        Bitfield<40> erridrEL1; // RES0 for HFGWTR
+        Bitfield<39> iccIgrpEnEL1;
+        Bitfield<38> vbarEL1;
+        Bitfield<37> ttbr1EL1;
+        Bitfield<36> ttbr0EL1;
+        Bitfield<35> tpidrEL0;
+        Bitfield<34> tpidrroEL0;
+        Bitfield<33> tpidrEL1;
+        Bitfield<32> tcrEL1;
+        Bitfield<31> scxtnumEL0;
+        Bitfield<30> scxtnumEL1;
+        Bitfield<29> sctlrEL1;
+        Bitfield<28> revidrEL1; // RES0 for HFGWTR
+        Bitfield<27> parEL1;
+        Bitfield<26> mpidrEL1; // RES0 for HFGWTR
+        Bitfield<25> midrEL1; // RES0 for HFGWTR
+        Bitfield<24> mairEL1;
+        Bitfield<23> lorsaEL1;
+        Bitfield<22> lornEL1;
+        Bitfield<21> loridEL1; // RES0 for HFGWTR
+        Bitfield<20> loreaEL1;
+        Bitfield<19> lorcEL1;
+        Bitfield<18> isrEL1; // RES0 for HFGWTR
+        Bitfield<17> farEL1;
+        Bitfield<16> esrEL1;
+        Bitfield<15> dczidEL0; // RES0 for HFGWTR
+        Bitfield<14> ctrEL0; // RES0 for HFGWTR
+        Bitfield<13> csselrEL1;
+        Bitfield<12> cpacrEL1;
+        Bitfield<11> contextidrEL1;
+        Bitfield<10> clidrEL1; // RES0 for HFGWTR
+        Bitfield<9> ccsidrEL1; // RES0 for HFGWTR
+        Bitfield<8> apibKey;
+        Bitfield<7> apiaKey;
+        Bitfield<6> apgaKey;
+        Bitfield<5> apdbKey;
+        Bitfield<4> apdaKey;
+        Bitfield<3> amairEL1;
+        Bitfield<2> aidrEL1; // RES0 for HFGWTR
+        Bitfield<1> afsr1EL1;
+        Bitfield<0> afsr0EL1;
+    EndBitUnion(HFGTR)
+
+    BitUnion64(HCRX)
+        Bitfield<15> sctlr2En;
+        Bitfield<14> tcr2En;
+    EndBitUnion(HCRX)
 
 } // namespace ArmISA
 } // namespace gem5

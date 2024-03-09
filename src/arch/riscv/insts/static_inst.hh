@@ -33,6 +33,7 @@
 #include <string>
 
 #include "arch/riscv/pcstate.hh"
+#include "arch/riscv/regs/misc.hh"
 #include "arch/riscv/types.hh"
 #include "cpu/exec_context.hh"
 #include "cpu/static_inst.hh"
@@ -57,6 +58,18 @@ class RiscvStaticInst : public StaticInst
     {}
 
     bool alignmentOk(ExecContext* xc, Addr addr, Addr size) const;
+
+    template <typename T>
+    T
+    rvSelect(T v32, T v64) const
+    {
+        return (machInst.rv_type == RV32) ? v32 : v64;
+    }
+
+    template <typename T32, typename T64>
+    T64 rvExt(T64 x) const { return rvSelect((T64)(T32)x, x); }
+    uint64_t rvZext(uint64_t x) const { return rvExt<uint32_t, uint64_t>(x); }
+    int64_t rvSext(int64_t x) const { return rvExt<int32_t, int64_t>(x); }
 
   public:
     ExtMachInst machInst;
@@ -133,6 +146,15 @@ class RiscvMacroInst : public RiscvStaticInst
     {
         panic("Tried to execute a macroop directly!\n");
     }
+
+    void size(size_t newSize) override
+    {
+        for (int i = 0; i < microops.size(); i++) {
+            microops[i]->size(newSize);
+        }
+        _size = newSize;
+    }
+
 };
 
 /**

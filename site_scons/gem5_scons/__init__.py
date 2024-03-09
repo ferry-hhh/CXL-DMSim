@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2015-2017 ARM Limited
+# Copyright (c) 2013, 2015-2017, 2023 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -39,16 +39,17 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import os.path
 import pickle
 import sys
 import tempfile
 import textwrap
 
-from gem5_scons.util import get_termcap
-from gem5_scons.configure import Configure
-from gem5_scons.defaults import EnvDefaults
 import SCons.Node.Python
 import SCons.Script
+from gem5_scons.configure import Configure
+from gem5_scons.defaults import EnvDefaults
+from gem5_scons.util import get_termcap
 
 termcap = get_termcap()
 
@@ -56,7 +57,7 @@ termcap = get_termcap()
 def strip_build_path(path, env):
     path = str(path)
     build_base = "build/"
-    variant_base = env["BUILDROOT"] + os.path.sep
+    variant_base = os.path.dirname(env["BUILDDIR"]) + os.path.sep
     if path.startswith(variant_base):
         path = path[len(variant_base) :]
     elif path.startswith(build_base):
@@ -88,7 +89,7 @@ def TempFileSpawn(scons_env):
 # Generate a string of the form:
 #   common/path/prefix/src1, src2 -> tgt1, tgt2
 # to print while building.
-class Transform(object):
+class Transform:
     # all specific color settings should be here and nowhere else
     tool_color = termcap.Normal
     pfx_color = termcap.Yellow
@@ -117,7 +118,7 @@ class Transform(object):
         source = source[0 : self.max_sources]
 
         def strip(f):
-            return strip_build_path(str(f), env)
+            return strip_build_path(f, env)
 
         if len(source) > 0:
             srcs = list(map(strip, source))
@@ -255,18 +256,21 @@ def error(*args, **kwargs):
 def parse_build_path(target):
     path_dirs = target.split("/")
 
-    # Pop off the target file.
-    path_dirs.pop()
-
-    # Search backwards for the "build" directory. Whatever was just before it
-    # was the name of the variant.
-    variant_dir = path_dirs.pop()
-    while path_dirs and path_dirs[-1] != "build":
-        variant_dir = path_dirs.pop()
-    if not path_dirs:
-        error("No non-leaf 'build' dir found on target path.", target)
-
-    return os.path.join("/", *path_dirs), variant_dir
+    # Search backwards for a directory with a gem5.build sub-directory, or a
+    # directory who's parent is called "build". gem5.build identifies an
+    # existing gem5 build directory. A directory called "build" is an anchor
+    # for a legacy "build/${VARIANT}/${TARGET}" style build path, where the
+    # variant selects a default config to use.
+    while path_dirs:
+        dot_gem5 = os.path.join("/", *path_dirs, "gem5.build")
+        if (
+            os.path.isdir(dot_gem5)
+            or len(path_dirs) > 1
+            and path_dirs[-2] == "build"
+        ):
+            return os.path.join("/", *path_dirs)
+        path_dirs.pop()
+    error(f"No existing build directory and no variant for {target}")
 
 
 # The MakeAction wrapper, and a SCons tool to set up the *COMSTR variables.
@@ -302,6 +306,48 @@ def FromValue(node):
     return pickle.loads(node.read())
 
 
+def patch_re_compile_for_inline_flags():
+    """Patch `re.compile` with a version that can handle RE strings with
+    inline flags anywhere within them. This is required to use PLY
+    with Python 3.11+.
+
+    """
+
+    import re
+    from functools import partial
+
+    def _inline_flag_aware_re_compile(re_compile, re_str, flags=0x0):
+        """Provide an alternative implementation of `re.compile` that allows
+        inline flags that are not at the start of the regular
+        expression string.
+
+        From Python 3.11, the `re` module only supports inline flags
+        at the start of the RE string. This makes it impossible to add
+        flags to the Lexer strings when using PLY, because PLY embeds
+        the user supplied token REs, and does not provide sufficient
+        control of the `flags` argument.
+
+        """
+        _flags_map = {
+            ("(?a)", b"(?a)"): re.ASCII,
+            ("(?i)", b"(?i)"): re.IGNORECASE,
+            ("(?L)", b"(?L)"): re.LOCALE,
+            ("(?m)", b"(?m)"): re.MULTILINE,
+            ("(?s)", b"(?s)"): re.DOTALL,
+            ("(?x)", b"(?x)"): re.VERBOSE,
+        }
+        for (pattern_s, pattern_b), flag in _flags_map.items():
+            pattern = pattern_b if isinstance(re_str, bytes) else pattern_s
+            replacement = b"" if isinstance(re_str, bytes) else ""
+            if pattern in re_str:
+                flags |= flag
+                re_str = re_str.replace(pattern, replacement)
+        return re_compile(re_str, flags)
+
+    # Patch the default `re.compile`
+    re.compile = partial(_inline_flag_aware_re_compile, re.compile)
+
+
 __all__ = [
     "Configure",
     "EnvDefaults",
@@ -312,4 +358,5 @@ __all__ = [
     "MakeActionTool",
     "ToValue",
     "FromValue",
+    "patch_re_compile_for_inline_flags",
 ]

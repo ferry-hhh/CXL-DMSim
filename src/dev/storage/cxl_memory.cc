@@ -34,6 +34,7 @@ AddrRangeList CxlMemory::getAddrRanges() const {
     AddrRange cxl_range = AddrRange(0x100000000, 0x100000000+0x80000000);
     ranges.push_back(cxl_range);
     return ranges;
+    // return PciDevice::getAddrRanges();
 }
 
 Tick CxlMemory::resolve_cxl_mem(PacketPtr pkt) {

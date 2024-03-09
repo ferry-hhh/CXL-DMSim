@@ -25,8 +25,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import os
+import string
+import subprocess
+import sys
 from configparser import ConfigParser
-import string, sys, subprocess, os
 
 # Compile DSENT to generate the Python module and then import it.
 # This script assumes it is executed from the gem5 root.
@@ -40,7 +43,7 @@ if not os.path.exists(build_dir):
     os.makedirs(build_dir)
 os.chdir(build_dir)
 
-error = call(["cmake", "../../../%s" % src_dir])
+error = call(["cmake", f"../../../{src_dir}"])
 if error:
     print("Failed to run cmake")
     exit(-1)
@@ -54,6 +57,7 @@ print("Compiled dsent")
 os.chdir("../../../")
 sys.path.append("build/ext/dsent")
 import dsent
+
 
 # Parse gem5 config.ini file for the configuration parameters related to
 # the on-chip network.
@@ -154,18 +158,18 @@ def computeRouterPowerAndArea(
         ni_flit_size_bits,
     )
 
-    print("%s Power: " % router, power)
+    print(f"{router} Power: ", power)
 
 
 ## Compute the power consumed by the given link
 def computeLinkPower(link, stats_file, config, sim_seconds):
     frequency = getClock(link + ".nls0", config)
     power = dsent.computeLinkPower(frequency)
-    print("%s.nls0 Power: " % link, power)
+    print(f"{link}.nls0 Power: ", power)
 
     frequency = getClock(link + ".nls1", config)
     power = dsent.computeLinkPower(frequency)
-    print("%s.nls1 Power: " % link, power)
+    print(f"{link}.nls1 Power: ", power)
 
 
 def parseStats(
@@ -182,13 +186,12 @@ def parseStats(
     buffers_per_control_vc,
     ni_flit_size_bits,
 ):
-
     # Open the stats.txt file and parse it to for the required numbers
     # and the number of routers.
     try:
-        stats_handle = open(stats_file, "r")
+        stats_handle = open(stats_file)
         stats_handle.close()
-    except IOError:
+    except OSError:
         print("Failed to open ", stats_file, " for reading")
         exit(-1)
 
@@ -269,10 +272,10 @@ def main():
         routers,
         int_links,
         ext_links,
-    ) = parseConfig("%s/%s/config.ini" % (sys.argv[1], sys.argv[2]))
+    ) = parseConfig(f"{sys.argv[1]}/{sys.argv[2]}/config.ini")
 
     parseStats(
-        "%s/%s/stats.txt" % (sys.argv[1], sys.argv[2]),
+        f"{sys.argv[1]}/{sys.argv[2]}/stats.txt",
         config,
         sys.argv[3],
         sys.argv[4],

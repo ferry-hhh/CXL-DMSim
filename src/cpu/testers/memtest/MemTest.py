@@ -36,10 +36,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
 from m5.proxy import *
-
-from m5.objects.ClockedObject import ClockedObject
 
 
 class MemTest(ClockedObject):
@@ -63,6 +62,7 @@ class MemTest(ClockedObject):
     percent_reads = Param.Percent(65, "Percentage reads")
     percent_functional = Param.Percent(50, "Percentage functional accesses")
     percent_uncacheable = Param.Percent(10, "Percentage uncacheable")
+    percent_atomic = Param.Percent(0, "Percentage atomics")
 
     # Determine how often to print progress messages and what timeout
     # to use for checking progress of both requests and responses
@@ -70,7 +70,7 @@ class MemTest(ClockedObject):
         1000000, "Progress report interval (in accesses)"
     )
     progress_check = Param.Cycles(
-        5000000, "Cycles before exiting " "due to lack of progress"
+        5000000, "Cycles before exiting due to lack of progress"
     )
 
     port = RequestPort("Port to the memory system")
@@ -79,5 +79,5 @@ class MemTest(ClockedObject):
     # Add the ability to supress error responses on functional
     # accesses as Ruby needs this
     suppress_func_errors = Param.Bool(
-        False, "Suppress panic when " "functional accesses fail."
+        False, "Suppress panic when functional accesses fail."
     )

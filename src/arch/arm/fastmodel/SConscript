@@ -48,15 +48,9 @@ from gem5_scons import Transform, warning, error
 import os.path
 
 if env['CONF']['USE_ARM_FASTMODEL']:
-    if env['CONF']['USE_SYSTEMC']:
-        env.TagImplies('arm fastmodel', 'arm isa')
-    else:
-        warning('ARM Fast Models require systemc support')
-        env['CONF']['USE_ARM_FASTMODEL'] = False
-
-
-systemc_home = Dir('#/src/systemc/ext/systemc_home')
-env['ENV']['SYSTEMC_HOME'] = systemc_home.abspath
+    env.TagImplies('arm fastmodel', 'arm isa')
+else:
+    Return()
 
 def extract_var(name):
     val = env['CONF'].get(name, None)
@@ -117,8 +111,6 @@ cpppaths = (
     pvlib_home.Dir('include/fmruntime'),
     pvlib_home.Dir('include/fmruntime/eslapi'),
     pvlib_home.Dir('Iris/include'),
-
-    systemc_home.Dir('include'),
 
     maxcore_home.Dir('AMBA-PV/include'),
 )
@@ -218,10 +210,9 @@ class ProjectFileParser(Grammar):
     t_ID = r'[A-Za-z_]\w*'
 
     def t_STRLIT(self, t):
-        r'(?m)"([^"])*"'
+        r'"([^"])*"'
         # strip off quotes
         t.value = t.value[1:-1]
-        t.lexer.lineno += t.value.count('\n')
         return t
 
     t_EQUALS = r'='
@@ -303,6 +294,10 @@ for header in common_headers:
     header_src = examples_common_dir.Dir('include').File(header)
     Command(header_target, header_src, Copy('${TARGET}', '${SOURCE}'))
 
+if not env['CONF']['SIMGEN']:
+    env['CONF']['SIMGEN'] = os.path.join(
+            env['CONF']['MAXCORE_HOME'], 'bin', 'simgen')
+
 class ArmFastModelComponent(object):
     def __init__(self, project_file, *extra_deps, tags=None):
         if not tags:
@@ -377,11 +372,12 @@ class ArmFastModelComponent(object):
         self.rpaths = [simgen_dir, project_file_dir]
         self.log = gen_dir.File('build_%s.log' % tlc)
         self.simgen_cmd = env.subst('${CONF["SIMGEN"]} -p %s '
-            '--configuration %s -b --verbose off --num-build-cpus %d %s '
+            '--configuration %s -b --verbose off --num-build-cpus %d -I %s %s '
             '--build-dir %s >%s') % \
             (shlex.quote(project_file.srcnode().abspath),
              shlex.quote(config_name),
              GetOption('num_jobs'),
+             shlex.quote(Dir('#/src').srcnode().abspath),
              simgen_command_line,
              shlex.quote(simgen_dir.abspath),
              shlex.quote(self.log.abspath))

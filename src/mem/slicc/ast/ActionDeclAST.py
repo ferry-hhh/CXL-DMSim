@@ -26,7 +26,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from slicc.ast.DeclAST import DeclAST
-from slicc.symbols import Action, Type, Var
+from slicc.symbols import (
+    Action,
+    Type,
+    Var,
+)
 
 
 class ActionDeclAST(DeclAST):
@@ -36,7 +40,7 @@ class ActionDeclAST(DeclAST):
         self.statement_list = statement_list
 
     def __repr__(self):
-        return "[ActionDecl: %r]" % (self.ident)
+        return f"[ActionDecl: {self.ident!r}]"
 
     def generate(self):
         resources = {}
