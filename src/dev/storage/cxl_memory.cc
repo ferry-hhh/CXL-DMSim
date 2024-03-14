@@ -8,16 +8,16 @@ namespace gem5
 CxlMemory::CxlMemory(const Param &p)
     : PciDevice(p),
     mem_(RangeSize(p.BAR0->addr(), p.BAR0->size()), *this),
-    latency_(p.latency),
-    cxl_mem_latency_(p.cxl_mem_latency) {}
+    latency_(ticksToCycles(p.latency)),
+    cxl_mem_latency_(ticksToCycles(p.cxl_mem_latency)) {}
 
 Tick CxlMemory::read(PacketPtr pkt) {
     DPRINTF(CxlMemory, "read address : (%lx, %lx)\n", pkt->getAddr(),
             pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
-    DPRINTF(CxlMemory, "read latency = %llu\n", latency_ + cxl_latency);
-    return latency_ + cxl_latency;
+    DPRINTF(CxlMemory, "read latency = %llu\n", (latency_ + cxl_latency) * this->clockPeriod());
+    return (latency_ + cxl_latency) * this->clockPeriod();
 }
 
 Tick CxlMemory::write(PacketPtr pkt) {
@@ -25,8 +25,8 @@ Tick CxlMemory::write(PacketPtr pkt) {
             pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
-    DPRINTF(CxlMemory, "write latency = %llu\n", latency_ + cxl_latency);
-    return latency_ + cxl_latency;
+    DPRINTF(CxlMemory, "write latency = %llu\n", (latency_ + cxl_latency) * this->clockPeriod());
+    return (latency_ + cxl_latency) * this->clockPeriod();
 }
 
 AddrRangeList CxlMemory::getAddrRanges() const {

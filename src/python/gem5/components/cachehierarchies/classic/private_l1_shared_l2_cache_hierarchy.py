@@ -178,9 +178,10 @@ class PrivateL1SharedL2CacheHierarchy(
             tag_latency=50,
             data_latency=50,
             response_latency=50,
-            mshrs=20,
-            size="1kB",
+            mshrs=32,
+            size="256kB",
             tgts_per_mshr=12,
+            write_buffers=32,
             addr_ranges=board.mem_ranges,
         )
         self.iocache.mem_side = self.membus.cpu_side_ports

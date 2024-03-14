@@ -31,6 +31,7 @@ from m5.objects import (
     Cache,
     Clusivity,
     StridePrefetcher,
+    L2MultiPrefetcher,
 )
 
 from .....utils.override import *
@@ -48,11 +49,12 @@ class L2Cache(Cache):
         tag_latency: int = 10,
         data_latency: int = 10,
         response_latency: int = 1,
-        mshrs: int = 20,
+        mshrs: int = 32,
         tgts_per_mshr: int = 12,
+        write_buffers: int = 20,
         writeback_clean: bool = False,
         clusivity: Clusivity = "mostly_incl",
-        PrefetcherCls: Type[BasePrefetcher] = StridePrefetcher,
+        PrefetcherCls: Type[BasePrefetcher] = L2MultiPrefetcher,
     ):
         super().__init__()
         self.size = size
@@ -62,6 +64,7 @@ class L2Cache(Cache):
         self.response_latency = response_latency
         self.mshrs = mshrs
         self.tgts_per_mshr = tgts_per_mshr
+        self.write_buffers = write_buffers
         self.writeback_clean = writeback_clean
         self.clusivity = clusivity
         self.prefetcher = PrefetcherCls()

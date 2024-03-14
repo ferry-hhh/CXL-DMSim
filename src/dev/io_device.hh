@@ -45,6 +45,7 @@
 #include "params/BasicPioDevice.hh"
 #include "params/PioDevice.hh"
 #include "sim/clocked_object.hh"
+#include "debug/CxlMemory.hh"
 
 namespace gem5
 {
@@ -76,7 +77,11 @@ class PioPort : public SimpleTimingPort
 
         const Tick delay =
             pkt->isRead() ? device->read(pkt) : device->write(pkt);
-        // assert(pkt->isResponse() || pkt->isError());
+        if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x300000000) {
+          DPRINTF(CxlMemory, "the cmd of pkt is %s, addrRange is %s.\n", pkt->cmd.toString(), pkt->getAddrRange().to_string());
+          DPRINTF(CxlMemory, "io_device delay=%llu, receive_delay=%llu\n", delay, receive_delay);
+          }
+        assert(pkt->isResponse() || pkt->isError());
         return delay + receive_delay;
     }
 

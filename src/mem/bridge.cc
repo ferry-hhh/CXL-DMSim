@@ -57,11 +57,11 @@ namespace gem5
 Bridge::BridgeResponsePort::BridgeResponsePort(const std::string& _name,
                                          Bridge& _bridge,
                                          BridgeRequestPort& _memSidePort,
-                                         Cycles _delay, int _resp_limit,
+                                         Cycles _delay, Cycles _cxl_delay, int _resp_limit,
                                          std::vector<AddrRange> _ranges)
     : ResponsePort(_name), bridge(_bridge),
       memSidePort(_memSidePort), delay(_delay),
-      ranges(_ranges.begin(), _ranges.end()),
+      cxl_delay(_cxl_delay), ranges(_ranges.begin(), _ranges.end()),
       outstandingResponses(0), retryReq(false), respQueueLimit(_resp_limit),
       sendEvent([this]{ trySendTiming(); }, _name)
 {
@@ -83,10 +83,12 @@ Bridge::BridgeRequestPort::BridgeRequestPort(const std::string& _name,
 Bridge::Bridge(const Params &p)
     : ClockedObject(p),
       cpuSidePort(p.name + ".cpu_side_port", *this, memSidePort,
-                ticksToCycles(p.delay), p.resp_size, p.ranges),
+                ticksToCycles(p.delay), ticksToCycles(p.cxl_delay), p.resp_size, p.ranges),
       memSidePort(p.name + ".mem_side_port", *this, cpuSidePort,
                  ticksToCycles(p.delay), p.req_size)
 {
+    DPRINTF(CxlMemory, "p.delay=%ld, ticksToCycles(p.delay)=%ld, p.cxl_delay=%ld, ticksToCycles(p.cxl_delay)=%ld\n",
+            p.delay, ticksToCycles(p.delay), p.cxl_delay, ticksToCycles(p.cxl_delay));
 }
 
 Port &
@@ -346,13 +348,12 @@ Bridge::BridgeResponsePort::recvAtomic(PacketPtr pkt)
 {
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
-    if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x200000000) {
+    if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x300000000) {
         DPRINTF(CxlMemory, "the cmd of pkt is %s, addrRange is %s.\n",
             pkt->cmd.toString(), pkt->getAddrRange().to_string());
         if (pkt->cmd == MemCmd::ReadReq) { pkt->cmd = MemCmd::M2SReq; }
         else if(pkt->cmd == MemCmd::WriteReq) { pkt->cmd = MemCmd::M2SRwD; }
         else { DPRINTF(CxlMemory, "the cmd of packet is %s, not a read or write.\n", pkt->cmd.toString()); }
-        Tick cxl_delay = 2;
         Tick access_delay = memSidePort.sendAtomic(pkt);
         Tick total_delay = (delay + cxl_delay) * bridge.clockPeriod() + access_delay;
         DPRINTF(CxlMemory, "bridge delay=%ld, bridge.clockPeriod=%ld, access_delay=%ld, cxl_delay=%ld, total=%ld\n",

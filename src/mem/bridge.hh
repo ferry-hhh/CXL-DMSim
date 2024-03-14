@@ -115,6 +115,9 @@ class Bridge : public ClockedObject
         /** Minimum request delay though this bridge. */
         const Cycles delay;
 
+        /** Conversion delay of cxl protocol in bridge*/        
+        const Cycles cxl_delay;
+
         /** Address ranges to pass through the bridge */
         const AddrRangeList ranges;
 
@@ -172,7 +175,7 @@ class Bridge : public ClockedObject
          * @param _ranges a number of address ranges to forward
          */
         BridgeResponsePort(const std::string& _name, Bridge& _bridge,
-                        BridgeRequestPort& _memSidePort, Cycles _delay,
+                        BridgeRequestPort& _memSidePort, Cycles _delay, Cycles _cxl_delay,
                         int _resp_limit, std::vector<AddrRange> _ranges);
 
         /**

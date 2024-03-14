@@ -464,7 +464,7 @@ def connectX86ClassicSystem(x86_sys, numCPUs):
 
     # North Bridge
     x86_sys.iobus = IOXBar()
-    x86_sys.bridge = Bridge(delay="25ns")
+    x86_sys.bridge = Bridge(delay="50ns", cxl_delay="25ns")
     x86_sys.bridge.mem_side_port = x86_sys.iobus.cpu_side_ports
     x86_sys.bridge.cpu_side_port = x86_sys.membus.mem_side_ports
     # Allow the bridge to pass through:
@@ -680,11 +680,11 @@ def makeLinuxX86System(
             size="%dB" % (self.mem_ranges[0].size() - 0x100000),
             range_type=1,
         ),
-        X86E820Entry(
-            addr=0x100000000,
-            size='2GB',
-            range_type=1,
-        ),
+        # X86E820Entry(
+        #     addr=0x100000000,
+        #     size='2GB',
+        #     range_type=1,
+        # ),
     ]
 
     # Mark [mem_size, 3GB) as reserved if memory less than 3GB, which force

@@ -30,6 +30,7 @@ from m5.objects import (
     BasePrefetcher,
     Cache,
     StridePrefetcher,
+    IndirectMemoryPrefetcher,
 )
 
 from .....utils.override import *
@@ -50,10 +51,10 @@ class L1ICache(Cache):
         tag_latency: int = 1,
         data_latency: int = 1,
         response_latency: int = 1,
-        mshrs: int = 16,
+        mshrs: int = 20,
         tgts_per_mshr: int = 20,
         writeback_clean: bool = True,
-        PrefetcherCls: Type[BasePrefetcher] = StridePrefetcher,
+        PrefetcherCls: Type[BasePrefetcher] = IndirectMemoryPrefetcher,
     ):
         super().__init__()
         self.size = size

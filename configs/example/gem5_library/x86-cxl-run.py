@@ -43,7 +43,7 @@ scons build/X86/gem5.opt
 import m5
 from gem5.utils.requires import requires
 from gem5.components.boards.x86_board import X86Board
-from gem5.components.memory.single_channel import SingleChannelDDR4_2400
+from gem5.components.memory.single_channel import SingleChannelDDR4_2400, DIMM_DDR5_4400
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
@@ -76,7 +76,7 @@ cache_hierarchy = PrivateL1SharedL2CacheHierarchy(
 )
 
 # Setup the system memory.
-memory = SingleChannelDDR4_2400(size="2GB")
+memory = DIMM_DDR5_4400(size="2GB")
 
 # Here we setup the processor. This is a special switchable processor in which
 # a starting core type and a switch core type must be specified. Once a
@@ -93,7 +93,7 @@ processor = SimpleSwitchableProcessor(
 
 # Here we setup the board. The X86Board allows for Full-System X86 simulations.
 board = X86Board(
-    clk_freq="3GHz",
+    clk_freq="2.1GHz",
     processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
