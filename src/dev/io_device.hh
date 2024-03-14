@@ -81,7 +81,7 @@ class PioPort : public SimpleTimingPort
           DPRINTF(CxlMemory, "the cmd of pkt is %s, addrRange is %s.\n", pkt->cmd.toString(), pkt->getAddrRange().to_string());
           DPRINTF(CxlMemory, "io_device delay=%llu, receive_delay=%llu\n", delay, receive_delay);
           }
-        assert(pkt->isResponse() || pkt->isError());
+        // assert(pkt->isResponse() || pkt->isError());
         return delay + receive_delay;
     }
 

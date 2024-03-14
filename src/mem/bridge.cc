@@ -72,10 +72,10 @@ Bridge::BridgeResponsePort::BridgeResponsePort(const std::string& _name,
 Bridge::BridgeRequestPort::BridgeRequestPort(const std::string& _name,
                                            Bridge& _bridge,
                                            BridgeResponsePort& _cpuSidePort,
-                                           Cycles _delay, int _req_limit)
+                                           Cycles _delay, Cycles _cxl_delay, int _req_limit)
     : RequestPort(_name), bridge(_bridge),
       cpuSidePort(_cpuSidePort),
-      delay(_delay), reqQueueLimit(_req_limit),
+      delay(_delay), cxl_delay(_cxl_delay), reqQueueLimit(_req_limit),
       sendEvent([this]{ trySendTiming(); }, _name)
 {
 }
@@ -85,7 +85,7 @@ Bridge::Bridge(const Params &p)
       cpuSidePort(p.name + ".cpu_side_port", *this, memSidePort,
                 ticksToCycles(p.delay), ticksToCycles(p.cxl_delay), p.resp_size, p.ranges),
       memSidePort(p.name + ".mem_side_port", *this, cpuSidePort,
-                 ticksToCycles(p.delay), p.req_size)
+                ticksToCycles(p.delay), ticksToCycles(p.cxl_delay), p.req_size)
 {
     DPRINTF(CxlMemory, "p.delay=%ld, ticksToCycles(p.delay)=%ld, p.cxl_delay=%ld, ticksToCycles(p.cxl_delay)=%ld\n",
             p.delay, ticksToCycles(p.delay), p.cxl_delay, ticksToCycles(p.cxl_delay));
@@ -141,8 +141,13 @@ Bridge::BridgeRequestPort::recvTimingResp(PacketPtr pkt)
     // the two sides of the bridge are synchronous)
     Tick receive_delay = pkt->headerDelay + pkt->payloadDelay;
     pkt->headerDelay = pkt->payloadDelay = 0;
-
-    cpuSidePort.schedTimingResp(pkt, bridge.clockEdge(delay) +
+    auto total_delay = delay;
+    if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x300000000) {
+        total_delay = delay + cxl_delay;
+        DPRINTF(CxlMemory, "recvTimingResp: %s addr 0x%x, when tick%ld\n", 
+            pkt->cmdString(), pkt->getAddr(), bridge.clockEdge(total_delay) + receive_delay);
+    }
+    cpuSidePort.schedTimingResp(pkt, bridge.clockEdge(total_delay) +
                               receive_delay);
 
     return true;
@@ -195,8 +200,13 @@ Bridge::BridgeResponsePort::recvTimingReq(PacketPtr pkt)
             // synchronous)
             Tick receive_delay = pkt->headerDelay + pkt->payloadDelay;
             pkt->headerDelay = pkt->payloadDelay = 0;
-
-            memSidePort.schedTimingReq(pkt, bridge.clockEdge(delay) +
+            auto total_delay = delay;
+            if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x300000000) {
+                total_delay = delay + cxl_delay;
+                DPRINTF(CxlMemory, "recvTimingReq: %s addr 0x%x, when tick%ld\n", 
+                    pkt->cmdString(), pkt->getAddr(), bridge.clockEdge(total_delay) + receive_delay);
+            }
+            memSidePort.schedTimingReq(pkt, bridge.clockEdge(total_delay) +
                                       receive_delay);
         }
     }

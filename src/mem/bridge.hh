@@ -251,6 +251,9 @@ class Bridge : public ClockedObject
         /** Minimum delay though this bridge. */
         const Cycles delay;
 
+        /** Conversion delay of cxl protocol in bridge*/        
+        const Cycles cxl_delay;
+
         /**
          * Request packet queue. Request packets are held in this
          * queue for a specified delay to model the processing delay
@@ -285,7 +288,7 @@ class Bridge : public ClockedObject
          * @param _req_limit the size of the request queue
          */
         BridgeRequestPort(const std::string& _name, Bridge& _bridge,
-                         BridgeResponsePort& _cpuSidePort, Cycles _delay,
+                         BridgeResponsePort& _cpuSidePort, Cycles _delay, Cycles _cxl_delay,
                          int _req_limit);
 
         /**
