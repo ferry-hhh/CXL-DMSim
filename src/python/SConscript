@@ -94,6 +94,9 @@ PySource('gem5.components.cachehierarchies.classic',
 PySource('gem5.components.cachehierarchies.classic',
     'gem5/components/cachehierarchies/classic/'
     'private_l1_shared_l2_cache_hierarchy.py')
+PySource('gem5.components.cachehierarchies.classic',
+    'gem5/components/cachehierarchies/classic/'
+    'private_l1_private_l2_shared_l3_cache_hierarchy.py')
 PySource('gem5.components.cachehierarchies.classic.caches',
     'gem5/components/cachehierarchies/classic/caches/__init__.py')
 PySource('gem5.components.cachehierarchies.classic.caches',
@@ -102,6 +105,8 @@ PySource('gem5.components.cachehierarchies.classic.caches',
     'gem5/components/cachehierarchies/classic/caches/l1icache.py')
 PySource('gem5.components.cachehierarchies.classic.caches',
     'gem5/components/cachehierarchies/classic/caches/l2cache.py')
+PySource('gem5.components.cachehierarchies.classic.caches',
+    'gem5/components/cachehierarchies/classic/caches/l3cache.py')
 PySource('gem5.components.cachehierarchies.classic.caches',
     'gem5/components/cachehierarchies/classic/caches/mmu_cache.py')
 PySource('gem5.components.cachehierarchies.ruby',

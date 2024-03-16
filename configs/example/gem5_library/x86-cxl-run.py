@@ -49,7 +49,6 @@ from gem5.components.processors.simple_switchable_processor import (
 )
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
-from gem5.coherence_protocol import CoherenceProtocol
 from gem5.simulate.simulator import Simulator
 from gem5.simulate.exit_event import ExitEvent
 from gem5.resources.resource import DiskImageResource, KernelResource
@@ -58,21 +57,22 @@ from gem5.resources.resource import DiskImageResource, KernelResource
 # MESI Two Level coherence protocol.
 requires(
     isa_required=ISA.X86,
-    coherence_protocol_required=CoherenceProtocol.MESI_TWO_LEVEL,
     # kvm_required=True,
 )
-from gem5.components.cachehierarchies.classic.private_l1_shared_l2_cache_hierarchy import (
-    PrivateL1SharedL2CacheHierarchy,
+from gem5.components.cachehierarchies.classic.private_l1_private_l2_shared_l3_cache_hierarchy import (
+    PrivateL1PrivateL2SharedL3CacheHierarchy,
 )
 
 # Here we setup a MESI Two Level Cache Hierarchy.
-cache_hierarchy = PrivateL1SharedL2CacheHierarchy(
+cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
     l1d_size="512kB",
     l1d_assoc=8,
     l1i_size="512kB",
     l1i_assoc=8,
     l2_size="4096kB",
     l2_assoc=16,
+    l3_size="8192kB",
+    l3_assoc=32,
 )
 
 # Setup the system memory.

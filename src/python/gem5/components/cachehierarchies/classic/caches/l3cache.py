@@ -32,30 +32,29 @@ from m5.objects import (
     Clusivity,
     StridePrefetcher,
     L2MultiPrefetcher,
-    IndirectMemoryPrefetcher,
 )
 
 from .....utils.override import *
 
 
-class L2Cache(Cache):
+class L3Cache(Cache):
     """
-    A simple L2 Cache with default values.
+    A simple L3 Cache with default values.
     """
 
     def __init__(
         self,
         size: str,
-        assoc: int = 16,
-        tag_latency: int = 10,
-        data_latency: int = 10,
-        response_latency: int = 10,
-        mshrs: int = 32,
-        tgts_per_mshr: int = 12,
-        write_buffers: int = 20,
+        assoc: int = 32,
+        tag_latency: int = 30,
+        data_latency: int = 30,
+        response_latency: int = 30,
+        mshrs: int = 128,
+        tgts_per_mshr: int = 24,
+        write_buffers: int = 128,
         writeback_clean: bool = False,
         clusivity: Clusivity = "mostly_incl",
-        PrefetcherCls: Type[BasePrefetcher] = IndirectMemoryPrefetcher,
+        PrefetcherCls: Type[BasePrefetcher] = L2MultiPrefetcher,
     ):
         super().__init__()
         self.size = size
