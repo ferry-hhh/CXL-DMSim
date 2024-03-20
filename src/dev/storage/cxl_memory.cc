@@ -17,8 +17,9 @@ Tick CxlMemory::read(PacketPtr pkt) {
             pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
-    DPRINTF(CxlMemory, "read latency = %llu\n", (latency_ + cxl_latency) * this->clockPeriod());
-    return (latency_ + cxl_latency) * this->clockPeriod();
+    Tick read_latency = (latency_ + cxl_latency) * this->clockPeriod();
+    DPRINTF(CxlMemory, "read latency = %llu\n", read_latency);
+    return read_latency;
 }
 
 Tick writeLatencyHelp(Tick input) {
@@ -26,7 +27,9 @@ Tick writeLatencyHelp(Tick input) {
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> dis(0, 8);
     double multipliers[9] = {1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0};
-    return static_cast<Tick>(input * multipliers[dis(gen)]);
+    double multipler = multipliers[dis(gen)];
+    DPRINTF(CxlMemory, "multiplier=%f, input=%llu, Tick write_latency=%llu\n", multipler, input, (Tick)(input * multipler));
+    return (Tick)(input * multipler);
 }
 
 Tick CxlMemory::write(PacketPtr pkt) {
@@ -34,8 +37,9 @@ Tick CxlMemory::write(PacketPtr pkt) {
             pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
-    DPRINTF(CxlMemory, "write latency = %llu\n", (latency_ + cxl_latency) * this->clockPeriod());
-    return (writeLatencyHelp(latency_)  + cxl_latency) * this->clockPeriod();
+    Tick write_latency = (writeLatencyHelp(latency_)  + cxl_latency) * this->clockPeriod();
+    DPRINTF(CxlMemory, "write latency = %llu\n", write_latency);
+    return write_latency;
 }
 
 AddrRangeList CxlMemory::getAddrRanges() const {
