@@ -152,14 +152,14 @@ class SnoopFilter(SimObject):
     system = Param.System(Parent.any, "System that the crossbar belongs to.")
 
     # Sanity check on max capacity to track, adjust if needed.
-    max_capacity = Param.MemorySize("8MiB", "Maximum capacity of snoop filter")
+    max_capacity = Param.MemorySize("48MiB", "Maximum capacity of snoop filter")
 
 
 # We use a coherent crossbar to connect multiple requestors to the L2
 # caches. Normally this crossbar would be part of the cache itself.
 class L2XBar(CoherentXBar):
     # 256-bit crossbar by default
-    width = 32
+    width = 64
 
     # Assume that most of this is covered by the cache latencies, with
     # no more than a single pipeline stage for any packet.
@@ -180,7 +180,7 @@ class L2XBar(CoherentXBar):
 
 
 class L3XBar(CoherentXBar):
-    width = 32
+    width = 64
     frontend_latency = 1
     forward_latency = 0
     response_latency = 1

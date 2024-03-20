@@ -46,14 +46,15 @@ class L3Cache(Cache):
         self,
         size: str,
         assoc: int = 32,
-        tag_latency: int = 30,
-        data_latency: int = 30,
-        response_latency: int = 30,
+        tag_latency: int = 10,
+        data_latency: int = 10,
+        response_latency: int = 8,
         mshrs: int = 128,
         tgts_per_mshr: int = 24,
         write_buffers: int = 128,
         writeback_clean: bool = False,
         clusivity: Clusivity = "mostly_incl",
+        # clusivity: Clusivity = "mostly_excl",
         PrefetcherCls: Type[BasePrefetcher] = L2MultiPrefetcher,
     ):
         super().__init__()

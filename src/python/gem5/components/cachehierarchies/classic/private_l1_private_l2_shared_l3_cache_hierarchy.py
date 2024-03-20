@@ -59,7 +59,7 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
     @staticmethod
     def _get_default_membus() -> SystemXBar:
         """
-        A method used to obtain the default memory bus of 64 bit in width for
+        A method used to obtain the default memory bus of 64 bytes in width for
         the PrivateL1PrivateL2SharedL3 CacheHierarchy.
 
         :returns: The default memory bus for the PrivateL1PrivateL2SharedL3

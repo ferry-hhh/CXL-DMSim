@@ -1,6 +1,7 @@
 #include "base/trace.hh"
 #include "dev/storage/cxl_memory.hh"
 #include "debug/CxlMemory.hh"
+#include <random>
 
 namespace gem5
 {
@@ -20,13 +21,21 @@ Tick CxlMemory::read(PacketPtr pkt) {
     return (latency_ + cxl_latency) * this->clockPeriod();
 }
 
+Tick writeLatencyHelp(Tick input) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis(0, 8);
+    double multipliers[9] = {1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0};
+    return static_cast<Tick>(input * multipliers[dis(gen)]);
+}
+
 Tick CxlMemory::write(PacketPtr pkt) {
     DPRINTF(CxlMemory, "write address : (%lx, %lx)\n", pkt->getAddr(),
             pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
     DPRINTF(CxlMemory, "write latency = %llu\n", (latency_ + cxl_latency) * this->clockPeriod());
-    return (latency_ + cxl_latency) * this->clockPeriod();
+    return (writeLatencyHelp(latency_)  + cxl_latency) * this->clockPeriod();
 }
 
 AddrRangeList CxlMemory::getAddrRanges() const {
