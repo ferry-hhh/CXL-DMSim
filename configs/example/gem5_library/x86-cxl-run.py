@@ -76,6 +76,7 @@ cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
 
 # Setup the system memory.
 memory = DIMM_DDR5_4400(size="2GB")
+# memory = DIMM_DDR5_4400(size="256MB")
 
 # Here we setup the processor. This is a special switchable processor in which
 # a starting core type and a switch core type must be specified. Once a
