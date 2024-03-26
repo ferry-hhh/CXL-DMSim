@@ -47,15 +47,15 @@ class L2Cache(Cache):
         self,
         size: str,
         assoc: int = 16,
-        tag_latency: int = 5,
-        data_latency: int = 5,
+        tag_latency: int = 6,
+        data_latency: int = 6,
         response_latency: int = 4,
         mshrs: int = 32,
         tgts_per_mshr: int = 12,
         write_buffers: int = 20,
-        writeback_clean: bool = False,
+        writeback_clean: bool = True,
         clusivity: Clusivity = "mostly_incl",
-        PrefetcherCls: Type[BasePrefetcher] = IndirectMemoryPrefetcher,
+        PrefetcherCls: Type[BasePrefetcher] = L2MultiPrefetcher,
     ):
         super().__init__()
         self.size = size

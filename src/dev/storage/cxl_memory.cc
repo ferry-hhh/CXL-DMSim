@@ -25,8 +25,8 @@ Tick CxlMemory::read(PacketPtr pkt) {
 Tick writeLatencyHelp(Tick input) {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> dis(0, 8);
-    double multipliers[9] = {1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0};
+    std::uniform_int_distribution<int> dis(0, 5);
+    double multipliers[6] = {1.5, 1.6, 1.7, 1.8, 1.9, 2.0};
     double multipler = multipliers[dis(gen)];
     DPRINTF(CxlMemory, "multiplier=%f, input=%llu, Tick write_latency=%llu\n", multipler, input, (Tick)(input * multipler));
     return (Tick)(input * multipler);

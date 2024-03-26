@@ -43,7 +43,7 @@ scons build/X86/gem5.opt
 import m5
 from gem5.utils.requires import requires
 from gem5.components.boards.x86_board import X86Board
-from gem5.components.memory.single_channel import SingleChannelDDR4_2400, DIMM_DDR5_4400
+from gem5.components.memory.single_channel import DIMM_DDR5_4400
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
@@ -57,7 +57,6 @@ from gem5.resources.resource import DiskImageResource, KernelResource
 # MESI Two Level coherence protocol.
 requires(
     isa_required=ISA.X86,
-    # kvm_required=True,
 )
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_shared_l3_cache_hierarchy import (
     PrivateL1PrivateL2SharedL3CacheHierarchy,
@@ -65,13 +64,13 @@ from gem5.components.cachehierarchies.classic.private_l1_private_l2_shared_l3_ca
 
 # Here we setup a MESI Two Level Cache Hierarchy.
 cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
-    l1d_size="512kB",
+    l1d_size="64kB",
     l1d_assoc=8,
-    l1i_size="512kB",
+    l1i_size="64kB",
     l1i_assoc=8,
-    l2_size="4096kB",
+    l2_size="2MB",
     l2_assoc=16,
-    l3_size="8192kB",
+    l3_size="16MB",
     l3_assoc=32,
 )
 
@@ -88,7 +87,7 @@ processor = SimpleSwitchableProcessor(
     starting_core_type=CPUTypes.ATOMIC,
     switch_core_type=CPUTypes.TIMING,
     isa=ISA.X86,
-    num_cores=1,
+    num_cores=4,
 )
 
 # Here we setup the board. The X86Board allows for Full-System X86 simulations.
@@ -110,10 +109,10 @@ board = X86Board(
 # has ended you may inspect `m5out/system.pc.com_1.device` to see the echo
 # output.
 command = (
-    # "m5 exit;"
+    "m5 exit;"
     "cd ../home/cxl_benchmark;"
     + "echo 'This is running on Timing CPU cores.';"
-    # + "./benchmark.sh;"
+    + "./benchmark.sh;"
 )
 
 board.set_kernel_disk_workload(
