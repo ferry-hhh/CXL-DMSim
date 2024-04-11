@@ -54,7 +54,7 @@ from gem5.simulate.exit_event import ExitEvent
 from gem5.resources.resource import DiskImageResource, KernelResource
 
 # This runs a check to ensure the gem5 binary is compiled to X86 and to the
-# MESI Two Level coherence protocol.
+# MESI Three Level coherence protocol.
 requires(
     isa_required=ISA.X86,
 )
@@ -62,7 +62,7 @@ from gem5.components.cachehierarchies.classic.private_l1_private_l2_shared_l3_ca
     PrivateL1PrivateL2SharedL3CacheHierarchy,
 )
 
-# Here we setup a MESI Two Level Cache Hierarchy.
+# Here we setup a MESI Three Level Cache Hierarchy.
 cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
     l1d_size="64kB",
     l1d_assoc=8,
@@ -71,7 +71,7 @@ cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
     l2_size="2MB",
     l2_assoc=16,
     l3_size="16MB",
-    l3_assoc=32,
+    l3_assoc=16,
 )
 
 # Setup the system memory.
@@ -88,7 +88,7 @@ processor = SimpleSwitchableProcessor(
     starting_core_type=CPUTypes.ATOMIC,
     switch_core_type=CPUTypes.TIMING,
     isa=ISA.X86,
-    num_cores=12,
+    num_cores=1,
 )
 
 # Here we setup the board. The X86Board allows for Full-System X86 simulations.
@@ -112,6 +112,7 @@ board = X86Board(
 command = (
     "m5 exit;"
     "cd ../home/cxl_benchmark;"
+    # + "numactl -H;"
     + "echo 'This is running on Timing CPU cores.';"
     + "./benchmark.sh;"
 )

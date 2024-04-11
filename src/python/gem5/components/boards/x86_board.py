@@ -29,7 +29,7 @@ from typing import (
     List,
     Sequence,
 )
-
+# from gem5.components.memory.single_channel import SingleChannelDDR3_1600
 from m5.objects import (
     Addr,
     AddrRange,
@@ -49,10 +49,10 @@ from m5.objects import (
     X86IntelMPIOIntAssignment,
     X86IntelMPProcessor,
     X86SMBiosBiosInformation,
-    X86ACPIMadtIntSourceOverride,
-    X86ACPIMadtLAPIC,
-    X86ACPIMadtIOAPIC,
-    X86ACPIMadt,
+    # X86ACPIMadtIntSourceOverride,
+    # X86ACPIMadtLAPIC,
+    # X86ACPIMadtIOAPIC,
+    # X86ACPIMadt,
 )
 from m5.util.convert import toMemorySize
 
@@ -128,7 +128,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         if self.get_cache_hierarchy().is_ruby():
             self.pc.attachIO(self.get_io_bus(), [self.pc.south_bridge.ide.dma])
         else:
-            self.bridge = Bridge(delay="50ns", cxl_delay="25ns")
+            self.bridge = Bridge(delay="50ns", cxl_delay="40ns")
             self.bridge.mem_side_port = self.get_io_bus().cpu_side_ports
             self.bridge.cpu_side_port = (
                 self.get_cache_hierarchy().get_mem_side_port()
@@ -170,7 +170,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         # Set up the Intel MP table
         base_entries = []
         ext_entries = []
-        madt_records = []
+        # madt_records = []
         for i in range(self.get_processor().get_num_cores()):
             bp = X86IntelMPProcessor(
                 local_apic_id=i,
@@ -179,8 +179,8 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
                 bootstrap=(i == 0),
             )
             base_entries.append(bp)
-            lapic = X86ACPIMadtLAPIC(acpi_processor_id=i, apic_id=i, flags=1)
-            madt_records.append(lapic)
+            # lapic = X86ACPIMadtLAPIC(acpi_processor_id=i, apic_id=i, flags=1)
+            # madt_records.append(lapic)
         io_apic = X86IntelMPIOAPIC(
             id=self.get_processor().get_num_cores(),
             version=0x11,
@@ -190,9 +190,9 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
 
         self.pc.south_bridge.io_apic.apic_id = io_apic.id
         base_entries.append(io_apic)
-        madt_records.append(
-            X86ACPIMadtIOAPIC(id=io_apic.id, address=io_apic.address, int_base=0)
-        )
+        # madt_records.append(
+        #     X86ACPIMadtIOAPIC(id=io_apic.id, address=io_apic.address, int_base=0)
+        # )
         pci_bus = X86IntelMPBus(bus_id=0, bus_type="PCI   ")
         base_entries.append(pci_bus)
         isa_bus = X86IntelMPBus(bus_id=1, bus_type="ISA   ")
@@ -213,13 +213,13 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         )
 
         base_entries.append(pci_dev4_inta)
-        pci_dev4_inta_madt = X86ACPIMadtIntSourceOverride(
-            bus_source=pci_dev4_inta.source_bus_id,
-            irq_source=pci_dev4_inta.source_bus_irq,
-            sys_int=pci_dev4_inta.dest_io_apic_intin,
-            flags=0,
-        )
-        madt_records.append(pci_dev4_inta_madt)
+        # pci_dev4_inta_madt = X86ACPIMadtIntSourceOverride(
+        #     bus_source=pci_dev4_inta.source_bus_id,
+        #     irq_source=pci_dev4_inta.source_bus_irq,
+        #     sys_int=pci_dev4_inta.dest_io_apic_intin,
+        #     flags=0,
+        # )
+        # madt_records.append(pci_dev4_inta_madt)
 
         def assignISAInt(irq, apicPin):
             assign_8259_to_apic = X86IntelMPIOIntAssignment(
@@ -243,11 +243,11 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
                 dest_io_apic_intin=apicPin,
             )
             base_entries.append(assign_to_apic)
-            # acpi
-            assign_to_apic_acpi = X86ACPIMadtIntSourceOverride(
-                bus_source=1, irq_source=irq, sys_int=apicPin, flags=0
-            )
-            madt_records.append(assign_to_apic_acpi)
+            # # acpi
+            # assign_to_apic_acpi = X86ACPIMadtIntSourceOverride(
+            #     bus_source=1, irq_source=irq, sys_int=apicPin, flags=0
+            # )
+            # madt_records.append(assign_to_apic_acpi)
 
         assignISAInt(0, 2)
         assignISAInt(1, 1)
@@ -257,14 +257,14 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
 
         self.workload.intel_mp_table.base_entries = base_entries
         self.workload.intel_mp_table.ext_entries = ext_entries
-        madt = X86ACPIMadt(
-            local_apic_address=0, records=madt_records, oem_id="madt"
-        )
-        self.workload.acpi_description_table_pointer.rsdt.entries.append(madt)
-        self.workload.acpi_description_table_pointer.xsdt.entries.append(madt)
-        self.workload.acpi_description_table_pointer.oem_id = "gem5"
-        self.workload.acpi_description_table_pointer.rsdt.oem_id = "gem5"
-        self.workload.acpi_description_table_pointer.xsdt.oem_id = "gem5"
+        # madt = X86ACPIMadt(
+        #     local_apic_address=0, records=madt_records, oem_id="madt"
+        # )
+        # self.workload.acpi_description_table_pointer.rsdt.entries.append(madt)
+        # self.workload.acpi_description_table_pointer.xsdt.entries.append(madt)
+        # self.workload.acpi_description_table_pointer.oem_id = "gem5"
+        # self.workload.acpi_description_table_pointer.rsdt.oem_id = "gem5"
+        # self.workload.acpi_description_table_pointer.xsdt.oem_id = "gem5"
 
         entries = [
             # Mark the first megabyte of memory as reserved
@@ -317,6 +317,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
     @overrides(AbstractSystemBoard)
     def _setup_memory_ranges(self):
         memory = self.get_memory()
+        # cxl_memory = SingleChannelDDR3_1600(size="2GB")
 
         if memory.get_size() > toMemorySize("3GB"):
             raise Exception(
@@ -324,8 +325,14 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
                 "to 3GB because of the I/O hole."
             )
         data_range = AddrRange(memory.get_size())
+        # cxl_range = AddrRange(0x100000000, size=0x80000000)
         memory.set_memory_range([data_range])
-
+        # cxl_memory.set_memory_range([cxl_range])
+        cpu_abstract_mems = []
+        for mc in memory.get_memory_controllers():
+            cpu_abstract_mems.append(mc.dram)
+        # cpu_abstract_mems.append(cxl_memory.get_memory_controllers()[0].dram)
+        self.memories = cpu_abstract_mems
         # Add the address range for the IO
         self.mem_ranges = [
             data_range,  # All data

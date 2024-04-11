@@ -33,7 +33,7 @@ configs/example/memcheck.cfg
 configs/dram/lowp_sweep.cfg
 .pyenv
 .vscode
-/fs-result
+/fs_result
 /full-system-image
 Doxygen.config
 /include/cxl_kvs/viper/build

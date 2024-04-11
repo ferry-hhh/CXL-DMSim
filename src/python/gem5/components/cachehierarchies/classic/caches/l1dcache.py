@@ -53,7 +53,7 @@ class L1DCache(Cache):
         response_latency: int = 1,
         mshrs: int = 20,
         tgts_per_mshr: int = 20,
-        write_buffers: int = 12,
+        write_buffers: int = 20,
         writeback_clean: bool = False,
         PrefetcherCls: Type[BasePrefetcher] = IndirectMemoryPrefetcher,
     ):

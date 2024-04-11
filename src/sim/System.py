@@ -62,8 +62,11 @@ class System(SimObject):
     ]
 
     memories = VectorParam.AbstractMemory(
-        Self.all, "All memories in the system"
+        [], "All memories in the system"
     )
+    # memories = VectorParam.AbstractMemory(
+    #     Self.all, "All memories in the system"
+    # )
     mem_mode = Param.MemoryMode("atomic", "The mode the memory system is in")
 
     thermal_model = Param.ThermalModel(NULL, "Thermal model")
