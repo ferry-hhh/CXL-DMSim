@@ -50,7 +50,7 @@ class L3Cache(Cache):
         data_latency: int = 50,
         response_latency: int = 30,
         mshrs: int = 128,
-        tgts_per_mshr: int = 150,
+        tgts_per_mshr: int = 256,
         write_buffers: int = 128,
         writeback_clean: bool = False,
         # clusivity: Clusivity = "mostly_incl",

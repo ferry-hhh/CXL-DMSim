@@ -81,7 +81,7 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
         l1d_assoc: int = 8,
         l1i_assoc: int = 8,
         l2_assoc: int = 16,
-        l3_assoc: int = 32,
+        l3_assoc: int = 16,
         membus: BaseXBar = _get_default_membus.__func__(),
     ) -> None:
         """
