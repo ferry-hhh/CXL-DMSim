@@ -42,8 +42,8 @@ scons build/X86/gem5.opt
 
 import m5
 from gem5.utils.requires import requires
-from gem5.components.boards.x86_board import X86Board
-from gem5.components.memory.single_channel import DIMM_DDR5_4400
+from gem5.components.boards.x86_board import X86Board, setup_cxl_mem
+from gem5.components.memory.single_channel import DIMM_DDR5_6400
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
@@ -66,16 +66,16 @@ from gem5.components.cachehierarchies.classic.private_l1_private_l2_shared_l3_ca
 cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
     l1d_size="64kB",
     l1d_assoc=8,
-    l1i_size="64kB",
+    l1i_size="32kB",
     l1i_assoc=8,
     l2_size="2MB",
     l2_assoc=16,
-    l3_size="32MB",
-    l3_assoc=16,
+    l3_size="96MB",
+    l3_assoc=48,
 )
 
 # Setup the system memory.
-memory = DIMM_DDR5_4400(size="2GB")
+memory = DIMM_DDR5_6400(size="3GB")
 # memory = DIMM_DDR5_4400(size="232MB")
 
 # Here we setup the processor. This is a special switchable processor in which
@@ -88,16 +88,20 @@ processor = SimpleSwitchableProcessor(
     starting_core_type=CPUTypes.ATOMIC,
     switch_core_type=CPUTypes.TIMING,
     isa=ISA.X86,
-    num_cores=12,
+    num_cores=1,
 )
 
 # Here we setup the board. The X86Board allows for Full-System X86 simulations.
 board = X86Board(
-    clk_freq="2.1GHz",
+    clk_freq="3.8GHz",
     processor=processor,
     memory=memory,
-    cache_hierarchy=cache_hierarchy,
+    cache_hierarchy=cache_hierarchy
 )
+
+cxl_mem_size="3GB",
+cxl_numa=True,
+setup_cxl_mem(cxl_mem_size, cxl_numa)
 
 # Here we set the Full System workload.
 # The `set_kernel_disk_workload` function for the X86Board takes a kernel, a
@@ -121,7 +125,7 @@ command = (
 
 board.set_kernel_disk_workload(
     # kernel=KernelResource(local_path='/home/wyj/code/fs_image/vmlinux-5.4.49'),
-    kernel=KernelResource(local_path='/home/wyj/code/fs_image/vmlinux_numa'),
+    kernel=KernelResource(local_path='/home/wyj/code/fs_image/vmlinux'),
     disk_image=DiskImageResource(local_path='/home/wyj/code/fs_image/parsec.img'),
     # disk_image=DiskImageResource(local_path='/home/wyj/code/fs_image/npb.img'),
     readfile_contents=command,

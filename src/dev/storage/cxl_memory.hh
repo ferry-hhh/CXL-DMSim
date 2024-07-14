@@ -3,28 +3,27 @@
 #include "base/types.hh"
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
-#include "params/CxlMemory.hh"
+#include "params/CXLMemory.hh"
 #include "dev/pci/device.hh"
 
 namespace gem5
 {
-    class CxlMemory : public PciDevice {
+    class CXLMemory : public PciDevice {
         private:
         class Memory {
             private:
             AddrRange range;
             uint8_t* pmemAddr = nullptr;
             bool inAddrMap = true;
-            const std::string name_ = "CxlMemory::Memory";
-            CxlMemory& owner;
+            const std::string name_ = "CXLMemory::Memory";
+            CXLMemory& owner;
 
             public:
-            Memory(const AddrRange& range, CxlMemory& owner);
+            Memory(const AddrRange& range, CXLMemory& owner);
             inline uint8_t* toHostAddr(Addr addr) const { 
-                AddrRange temp_range = AddrRange(0x100000000, 0x100000000+0x80000000);
-                if (temp_range.contains(addr)) 
-                    return pmemAddr + addr - 0x100000000;
-                return pmemAddr + addr - range.start(); } // 这里计算的地址其实是要读/写的pmem的地址
+                if (owner.cxl_mem_range_.contains(addr)) 
+                    return pmemAddr + addr - owner.cxl_mem_range_.start();
+                return pmemAddr + addr - range.start(); }
             const std::string& name() const { return name_; }
             uint64_t size() const { return range.size(); }
             Addr start() const { return range.start(); }
@@ -36,10 +35,10 @@ namespace gem5
         };
 
         Memory mem_;
-
         Tick latency_;
-
         Tick cxl_mem_latency_;
+        AddrRange cxl_mem_range_;
+        bool numa_flag_;
         
         public:
         Tick read(PacketPtr pkt) override;
@@ -48,7 +47,7 @@ namespace gem5
         AddrRangeList getAddrRanges() const override;
 
         Tick resolve_cxl_mem(PacketPtr ptk);
-        using Param = CxlMemoryParams;
-        CxlMemory(const Param &p);
+        using Param = CXLMemoryParams;
+        CXLMemory(const Param &p);
     };
 } // namespace gem5

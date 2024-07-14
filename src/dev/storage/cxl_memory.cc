@@ -1,94 +1,84 @@
 #include "base/trace.hh"
 #include "dev/storage/cxl_memory.hh"
-#include "debug/CxlMemory.hh"
-#include <random>
+#include "debug/CXLMemory.hh"
 
 namespace gem5
 {
 
-CxlMemory::CxlMemory(const Param &p)
+CXLMemory::CXLMemory(const Param &p)
     : PciDevice(p),
     mem_(RangeSize(p.BAR0->addr(), p.BAR0->size()), *this),
     latency_(ticksToCycles(p.latency)),
-    cxl_mem_latency_(ticksToCycles(p.cxl_mem_latency)) {}
+    cxl_mem_latency_(ticksToCycles(p.cxl_mem_latency)),
+    cxl_mem_range_(p.cxl_mem_range), numa_flag_(p.numa_flag)
+    {
+        DPRINTF(CXLMemory, "BAR0_addr:0x%lx, BAR0_size:0x%lx\n", p.BAR0->addr(),
+            p.BAR0->size());
+    }
 
-Tick CxlMemory::read(PacketPtr pkt) {
-    DPRINTF(CxlMemory, "read address : (%lx, %lx)\n", pkt->getAddr(),
+Tick CXLMemory::read(PacketPtr pkt) {
+    DPRINTF(CXLMemory, "read address : (%lx, %lx)\n", pkt->getAddr(),
             pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
     Tick read_latency = (latency_ + cxl_latency) * this->clockPeriod();
-    DPRINTF(CxlMemory, "read latency = %llu\n", read_latency);
+    DPRINTF(CXLMemory, "read latency = %llu\n", read_latency);
     return read_latency;
 }
 
-Tick writeLatencyHelp(Tick input) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> dis(0, 5);
-    double multipliers[6] = {1.5, 1.6, 1.7, 1.8, 1.9, 2.0};
-    double multipler = multipliers[dis(gen)];
-    DPRINTF(CxlMemory, "multiplier=%f, input=%llu, Tick write_latency=%llu\n", multipler, input, (Tick)(input * multipler));
-    return (Tick)(input * multipler);
-}
-
-Tick CxlMemory::write(PacketPtr pkt) {
-    DPRINTF(CxlMemory, "write address : (%lx, %lx)\n", pkt->getAddr(),
+Tick CXLMemory::write(PacketPtr pkt) {
+    DPRINTF(CXLMemory, "write address : (%lx, %lx)\n", pkt->getAddr(),
             pkt->getSize());
     Tick cxl_latency = resolve_cxl_mem(pkt);
     mem_.access(pkt);
-    Tick write_latency = (writeLatencyHelp(latency_)  + cxl_latency) * this->clockPeriod();
-    DPRINTF(CxlMemory, "write latency = %llu\n", write_latency);
+    Tick write_latency = (latency_ + cxl_latency) * this->clockPeriod();
+    DPRINTF(CXLMemory, "write latency = %llu\n", write_latency);
     return write_latency;
 }
 
-AddrRangeList CxlMemory::getAddrRanges() const {
+AddrRangeList CXLMemory::getAddrRanges() const {
     AddrRangeList ranges = PciDevice::getAddrRanges();
-    AddrRange cxl_range = AddrRange(0x100000000, 0x100000000+0x80000000);
-    ranges.push_back(cxl_range);
+    if (numa_flag_)
+        ranges.push_back(cxl_mem_range_);
     return ranges;
-    // return PciDevice::getAddrRanges();
 }
 
-Tick CxlMemory::resolve_cxl_mem(PacketPtr pkt) {
-    // if (pkt->cmd == MemCmd::M2SReq) {
-    if (pkt->cmd == MemCmd::ReadReq) {
+Tick CXLMemory::resolve_cxl_mem(PacketPtr pkt) {
+    if (pkt->cmd == MemCmd::M2SReq) {
         assert(pkt->isRead());
         assert(pkt->needsResponse());
-    // } else if (pkt->cmd == MemCmd::M2SRwD) {
-    } else if (pkt->cmd == MemCmd::WriteReq) {
+    } else if (pkt->cmd == MemCmd::M2SRwD) {
         assert(pkt->isWrite());
         assert(pkt->needsResponse());
     }
     return cxl_mem_latency_;
 }
 
-CxlMemory::Memory::Memory(const AddrRange& range, CxlMemory& owner)
+CXLMemory::Memory::Memory(const AddrRange& range, CXLMemory& owner)
     : range(range),
     owner(owner) {
     pmemAddr = new uint8_t[range.size()];
-    DPRINTF(CxlMemory, "initial range start=0x%lx, range size=0x%lx\n", range.start(), range.size());
+    DPRINTF(CXLMemory, "initial range start=0x%lx, range size=0x%lx\n", range.start(), range.size());
 }
 
-void CxlMemory::Memory::access(PacketPtr pkt) {
+void CXLMemory::Memory::access(PacketPtr pkt) {
     PciBar *bar = owner.BARs[0];
     range = RangeSize(bar->addr(), bar->size());
-    // DPRINTF(CxlMemory, "final range start=0x%lx, range size=0x%lx\n", range.start(), range.size());
-    // range = AddrRange(0x100000000, 0x100000000 + 0x100000000); // 0x8000000=128MiB 0x100000000=4GiB
+    // DPRINTF(CXLMemory, "final range start=0x%lx, range size=0x%lx\n", range.start(), range.size());
     if (pkt->cacheResponding()) {
-        DPRINTF(CxlMemory, "Cache responding to %#llx: not responding\n", pkt->getAddr());
+        DPRINTF(CXLMemory, "Cache responding to %#llx: not responding\n", pkt->getAddr());
         return;
     }
 
     if (pkt->cmd == MemCmd::CleanEvict || pkt->cmd == MemCmd::WritebackClean) {
-        DPRINTF(CxlMemory, "CleanEvict  on 0x%x: not responding\n", pkt->getAddr());
+        DPRINTF(CXLMemory, "CleanEvict  on 0x%x: not responding\n", pkt->getAddr());
         return;
     }
     
     // assert(pkt->getAddrRange().isSubset(range));
 
     uint8_t* host_addr = toHostAddr(pkt->getAddr());
-    // DPRINTF(CxlMemory, "host_addr = %p, pkt->getAddr = 0x%lx, pmemAddr = %p, range.start = 0x%lx\n", 
+    // DPRINTF(CXLMemory, "host_addr = %p, pkt->getAddr = 0x%lx, pmemAddr = %p, range.start = 0x%lx\n", 
     //     *host_addr, pkt->getAddr(), *pmemAddr, range.start());
     if (pkt->cmd == MemCmd::SwapReq) {
 
@@ -132,7 +122,7 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
         assert(!pkt->isWrite());
         if (pmemAddr) {
             pkt->setData(host_addr);
-            DPRINTF(CxlMemory, "%s read due to %s\n", __func__, pkt->print());
+            DPRINTF(CXLMemory, "%s read due to %s\n", __func__, pkt->print());
             // std::cout << "read data = " << pkt->getPtr<uint8_t>() << "\n";
         }
     } else if (pkt->isInvalidate() || pkt->isClean()) {
@@ -144,7 +134,7 @@ void CxlMemory::Memory::access(PacketPtr pkt) {
     } else if (pkt->isWrite()) {
         if (pmemAddr) {
             pkt->writeData(host_addr);
-            DPRINTF(CxlMemory, "%s write due to %s\n", __func__, pkt->print());
+            DPRINTF(CXLMemory, "%s write due to %s\n", __func__, pkt->print());
             // std::cout << "write data = " << pkt->getPtr<uint8_t>() << "\n";
         }
         assert(!pkt->req->isInstFetch());

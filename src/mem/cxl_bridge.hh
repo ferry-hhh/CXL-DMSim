@@ -44,33 +44,20 @@
  * and a responder through a request and response queue.
  */
 
-#ifndef __MEM_BRIDGE_HH__
-#define __MEM_BRIDGE_HH__
+#ifndef __MEM_CXL_BRIDGE_HH__
+#define __MEM_CXL_BRIDGE_HH__
 
 #include <deque>
 
 #include "base/types.hh"
 #include "mem/port.hh"
-#include "params/Bridge.hh"
+#include "params/CXLBridge.hh"
 #include "sim/clocked_object.hh"
 
 namespace gem5
 {
 
-/**
- * A bridge is used to interface two different crossbars (or in general a
- * memory-mapped requestor and responder), with buffering for requests and
- * responses. The bridge has a fixed delay for packets passing through
- * it and responds to a fixed set of address ranges.
- *
- * The bridge comprises a response port and a request port, that buffer
- * outgoing responses and requests respectively. Buffer space is
- * reserved when a request arrives, also reserving response space
- * before forwarding the request. If there is no space present, then
- * the bridge will delay accepting the packet until space becomes
- * available.
- */
-class Bridge : public ClockedObject
+class CXLBridge : public ClockedObject
 {
   protected:
 
@@ -105,7 +92,7 @@ class Bridge : public ClockedObject
       private:
 
         /** The bridge to which this port belongs. */
-        Bridge& bridge;
+        CXLBridge& bridge;
 
         /**
          * Request port on the other side of the bridge.
@@ -114,6 +101,9 @@ class Bridge : public ClockedObject
 
         /** Minimum request delay though this bridge. */
         const Cycles delay;
+
+        /** Conversion delay of cxl protocol in bridge*/        
+        const Cycles cxl_delay;
 
         /** Address ranges to pass through the bridge */
         const AddrRangeList ranges;
@@ -171,8 +161,8 @@ class Bridge : public ClockedObject
          * @param _resp_limit the size of the response queue
          * @param _ranges a number of address ranges to forward
          */
-        BridgeResponsePort(const std::string& _name, Bridge& _bridge,
-                        BridgeRequestPort& _memSidePort, Cycles _delay,
+        BridgeResponsePort(const std::string& _name, CXLBridge& _bridge,
+                        BridgeRequestPort& _memSidePort, Cycles _delay, Cycles _cxl_delay,
                         int _resp_limit, std::vector<AddrRange> _ranges);
 
         /**
@@ -190,6 +180,8 @@ class Bridge : public ClockedObject
          * request is waiting.
          */
         void retryStalledReq();
+
+        AddrRange cxl_range;
 
       protected:
 
@@ -238,7 +230,7 @@ class Bridge : public ClockedObject
       private:
 
         /** The bridge to which this port belongs. */
-        Bridge& bridge;
+        CXLBridge& bridge;
 
         /**
          * The response port on the other side of the bridge.
@@ -247,6 +239,9 @@ class Bridge : public ClockedObject
 
         /** Minimum delay though this bridge. */
         const Cycles delay;
+
+        /** Conversion delay of cxl protocol in bridge*/        
+        const Cycles cxl_delay;
 
         /**
          * Request packet queue. Request packets are held in this
@@ -281,8 +276,8 @@ class Bridge : public ClockedObject
          * @param _delay the delay in cycles from receiving to sending
          * @param _req_limit the size of the request queue
          */
-        BridgeRequestPort(const std::string& _name, Bridge& _bridge,
-                         BridgeResponsePort& _cpuSidePort, Cycles _delay,
+        BridgeRequestPort(const std::string& _name, CXLBridge& _bridge,
+                         BridgeResponsePort& _cpuSidePort, Cycles _delay, Cycles _cxl_delay,
                          int _req_limit);
 
         /**
@@ -335,11 +330,11 @@ class Bridge : public ClockedObject
 
     void init() override;
 
-    typedef BridgeParams Params;
+    typedef CXLBridgeParams Params;
 
-    Bridge(const Params &p);
+    CXLBridge(const Params &p);
 };
 
 } // namespace gem5
 
-#endif //__MEM_BRIDGE_HH__
+#endif //__MEM_CXL_BRIDGE_HH__

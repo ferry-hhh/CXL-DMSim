@@ -39,7 +39,7 @@ from m5.objects.X86Ide import X86IdeController
 from m5.params import *
 from m5.proxy import *
 from m5.SimObject import SimObject
-from m5.objects.CxlMemory import CxlMemory
+from m5.objects.CXLMemory import CXLMemory
 
 
 def x86IOAddress(port):
@@ -79,8 +79,8 @@ class SouthBridge(SimObject):
 
     # IDE controller
     ide = X86IdeController(disks=[], pci_func=0, pci_dev=4, pci_bus=0)
-    # CxlMemory
-    cxlmemory = CxlMemory(pci_func=0, pci_dev=6, pci_bus=0)
+    # CXLMemory
+    cxlmemory = CXLMemory(pci_func=0, pci_dev=6, pci_bus=0)
 
     def attachIO(self, bus, dma_ports):
         # Route interrupt signals
