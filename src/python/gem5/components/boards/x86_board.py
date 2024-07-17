@@ -132,7 +132,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         if self.get_cache_hierarchy().is_ruby():
             self.pc.attachIO(self.get_io_bus(), [self.pc.south_bridge.ide.dma])
         else:
-            self.bridge = CXLBridge(delay="50ns", cxl_delay="10ns", req_size=64, resp_size=64)
+            self.bridge = CXLBridge(delay="50ns", cxl_delay="14ns", req_size=64, resp_size=64)
             self.bridge.mem_side_port = self.get_io_bus().cpu_side_ports
             self.bridge.cpu_side_port = (
                 self.get_cache_hierarchy().get_mem_side_port()
