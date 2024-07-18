@@ -75,8 +75,8 @@ cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
 )
 
 # Setup the system memory.
-memory = DIMM_DDR5_6400(size="3GB")
-# memory = DIMM_DDR5_4400(size="232MB")
+memory = DIMM_DDR5_6400(size="2GB")
+# memory = DIMM_DDR5_6400(size="256MB")
 
 # Here we setup the processor. This is a special switchable processor in which
 # a starting core type and a switch core type must be specified. Once a
@@ -86,9 +86,9 @@ memory = DIMM_DDR5_6400(size="3GB")
 # cores for the command we wish to run after boot.
 processor = SimpleSwitchableProcessor(
     starting_core_type=CPUTypes.ATOMIC,
-    switch_core_type=CPUTypes.TIMING,
+    switch_core_type=CPUTypes.O3,
     isa=ISA.X86,
-    num_cores=1,
+    num_cores=12,
 )
 
 # Here we setup the board. The X86Board allows for Full-System X86 simulations.
