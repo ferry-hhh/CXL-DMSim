@@ -97,7 +97,6 @@ PhysicalMemory::PhysicalMemory(const std::string& _name,
     // appropriate
     for (const auto& m : _memories) {
         // only add the memory if it is part of the global address map
-        printf("!!! m addr_range=%s\n", m->getAddrRange().to_string().c_str());
         if (m->isInAddrMap()) {
             memories.push_back(m);
 
@@ -273,10 +272,7 @@ PhysicalMemory::~PhysicalMemory()
 bool
 PhysicalMemory::isMemAddr(Addr addr) const
 {
-    if (addr >= 0x100000000 && addr < 0x300000000)
-        return true;
-    else
-        return addrMap.contains(addr) != addrMap.end();
+    return addrMap.contains(addr) != addrMap.end();
 }
 
 AddrRangeList

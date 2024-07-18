@@ -174,6 +174,7 @@ System::System(const Params &p)
               p.shared_backstore, p.auto_unlink_shared_backstore),
       ShadowRomRanges(p.shadow_rom_ranges.begin(),
                       p.shadow_rom_ranges.end()),
+      cxlMemRange(p.cxl_mem_range),
       memoryMode(p.mem_mode),
       _cacheLineSize(p.cache_line_size),
       numWorkIds(p.num_work_ids),
@@ -287,7 +288,10 @@ System::memSize() const
 bool
 System::isMemAddr(Addr addr) const
 {
-    return physmem.isMemAddr(addr);
+    if (cxlMemRange.contains(addr))
+        return true;
+    else
+        return physmem.isMemAddr(addr);
 }
 
 void
