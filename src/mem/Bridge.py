@@ -83,10 +83,10 @@ class CXLBridge(ClockedObject):
         cpu_side_port, "`slave` is now called `cpu_side_port`"
     )
 
-    req_size = Param.Unsigned(48, "The number of requests to buffer")
-    resp_size = Param.Unsigned(48, "The number of responses to buffer")
-    delay = Param.Latency("50ns", "The latency of this bridge")
-    cxl_delay = Param.Latency("30ns", "Conversion delay of cxl protocol in bridge")
+    req_fifo_depth= Param.Unsigned(48, "The number of requests to buffer")
+    resp_fifo_depth = Param.Unsigned(48, "The number of responses to buffer")
+    bridge_lat = Param.Latency("50ns", "The latency of this bridge")
+    host_proto_proc_lat = Param.Latency("14ns", "Conversion latency of cxl protocol in bridge")
     ranges = VectorParam.AddrRange(
         [AllMemory], "Address ranges to pass through the bridge"
     )

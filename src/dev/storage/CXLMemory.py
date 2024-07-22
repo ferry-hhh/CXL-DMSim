@@ -6,10 +6,9 @@ class CXLMemory(PciDevice):
     type = 'CXLMemory'
     cxx_header = "dev/storage/cxl_memory.hh"
     cxx_class = 'gem5::CXLMemory'
-    latency = Param.Latency('50ns', "cxl-memory device's latency for mem access")
-    cxl_mem_latency = Param.Latency('30ns', "cxl.mem protocol processing's latency for device")
-    cxl_mem_range = Param.AddrRange(AddrRange(Addr("4GB"), size="2GB"), "cxl.mem protocol processing's address range for device")
-    numa_flag = Param.Bool(True, "whether the device is numa node or not")
+    medium_access_lat = Param.Latency('50ns', "Latency of accessing the memory medium of the CXL expander backend")
+    device_proto_proc_lat = Param.Latency('15ns', "Latency of the CXL controller processing CXL.mem sub-protocol packets")
+    cxl_mem_range = Param.AddrRange(AddrRange(Addr("4GB"), size="2GB"), "CXL expander memory range that can be identified as system memory")
 
     VendorID = 0x8086
     DeviceID = 0X7890

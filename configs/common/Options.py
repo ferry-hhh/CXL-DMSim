@@ -606,7 +606,9 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         type=int,
         default=None,
         help="switch back and forth between CPUs with period <N>",
-    )
+    )    
+    parser.add_argument("--one-switch-cpu", action="store_true")
+
     parser.add_argument(
         "-s",
         "--standard-switch",
@@ -697,7 +699,6 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         default="2GB",
         help="Specify the CXL Device memory size",
     )
-    parser.add_argument("--cxl-numa", action="store_true")
     # parser.add_argument(
     #     "--cxl-mem-lat",
     #     action="store",

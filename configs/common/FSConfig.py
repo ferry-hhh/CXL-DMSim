@@ -465,7 +465,7 @@ def connectX86ClassicSystem(x86_sys, numCPUs, cxl_mem_size):
 
     # North Bridge
     x86_sys.iobus = IOXBar()
-    x86_sys.bridge = CXLBridge(delay="50ns", cxl_delay="30ns", req_size=48, resp_size=48)
+    self.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=52, resp_fifo_depth=52)
     x86_sys.bridge.mem_side_port = x86_sys.iobus.cpu_side_ports
     x86_sys.bridge.cpu_side_port = x86_sys.membus.mem_side_ports
     # Allow the bridge to pass through:
@@ -667,7 +667,7 @@ def makeX86System(mem_mode, cxl_mem_size, numCPUs=1, mdesc=None, workload=None, 
 
 
 def makeLinuxX86System(
-    mem_mode, cxl_mem_size, cxl_numa=False, numCPUs=1, mdesc=None, Ruby=False, cmdline=None
+    mem_mode, cxl_mem_size, numCPUs=1, mdesc=None, Ruby=False, cmdline=None
 ):
     # Build up the x86 system and then specialize it for Linux
     self = makeX86System(mem_mode, cxl_mem_size, numCPUs, mdesc, X86FsLinux(), Ruby)
@@ -701,8 +701,7 @@ def makeLinuxX86System(
                 range_type=2,
             )
         )
-        if cxl_numa:
-            entries.append(X86E820Entry(addr=0x100000000, size=cxl_mem_size, range_type=1))
+        entries.append(X86E820Entry(addr=0x100000000, size=cxl_mem_size, range_type=1))
 
     # Reserve the last 16kB of the 32-bit address space for the m5op interface
     entries.append(X86E820Entry(addr=0xFFFF0000, size="64kB", range_type=2))
@@ -719,9 +718,8 @@ def makeLinuxX86System(
                 range_type=1,
             )
         )
-        if cxl_numa:
-            cxl_addr_start = math.ceil((self.mem_ranges[1].size() + 0x100000000) / 0x100000000) * 0x100000000
-            entries.append(X86E820Entry(addr=cxl_addr_start, size=cxl_mem_size, range_type=1))
+        cxl_addr_start = math.ceil((self.mem_ranges[1].size() + 0x100000000) / 0x100000000) * 0x100000000
+        entries.append(X86E820Entry(addr=cxl_addr_start, size=cxl_mem_size, range_type=1))
 
     self.workload.e820_table.entries = entries
 

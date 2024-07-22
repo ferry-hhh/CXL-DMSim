@@ -51,6 +51,7 @@ from m5.objects import (
     X86IntelMPProcessor,
     X86SMBiosBiosInformation,
 )
+from m5.params import Latency
 from m5.util.convert import toMemorySize
 
 from ...isas import ISA
@@ -62,13 +63,6 @@ from ..processors.abstract_processor import AbstractProcessor
 from .abstract_system_board import AbstractSystemBoard
 from .kernel_disk_workload import KernelDiskWorkload
 
-
-cxl_mem_size_ = "2GB"
-cxl_numa_ = True
-
-def setup_cxl_mem(cxl_mem_size: str, cxl_numa: bool):
-    cxl_mem_size_ = cxl_mem_size
-    cxl_numa_ = cxl_numa
 
 class X86Board(AbstractSystemBoard, KernelDiskWorkload):
     """
@@ -85,12 +79,16 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         processor: AbstractProcessor,
         memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
+        cxl_mem_size: str,
+        is_asic: bool,
     ) -> None:
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
             memory=memory,
             cache_hierarchy=cache_hierarchy,
+            cxl_mem_size=cxl_mem_size,
+            is_asic=is_asic,
         )
 
         if self.get_processor().get_isa() != ISA.X86:
@@ -132,7 +130,10 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         if self.get_cache_hierarchy().is_ruby():
             self.pc.attachIO(self.get_io_bus(), [self.pc.south_bridge.ide.dma])
         else:
-            self.bridge = CXLBridge(delay="50ns", cxl_delay="14ns", req_size=64, resp_size=64)
+            if self._is_asic:
+                self.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=52, resp_fifo_depth=52)
+            else:
+                self.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=48, resp_fifo_depth=48)
             self.bridge.mem_side_port = self.get_io_bus().cpu_side_ports
             self.bridge.cpu_side_port = (
                 self.get_cache_hierarchy().get_mem_side_port()
@@ -145,7 +146,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
             APIC_range_size = 1 << 12
 
             cxl_mem_start = 0x100000000
-            cxl_mem_range = AddrRange(cxl_mem_size_).size()
+            cxl_mem_range = AddrRange(self._cxl_mem_size).size()
             cxl_mem_end = cxl_mem_start + cxl_mem_range
             self.bridge.ranges = [
                 AddrRange(0xC0000000, 0xFFFF0000),
@@ -159,8 +160,11 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
             # Configure the CXL memory
             self.cxl_mem_range = AddrRange(cxl_mem_start, cxl_mem_end)
             self.pc.south_bridge.cxlmemory.cxl_mem_range = AddrRange(cxl_mem_start, cxl_mem_end)
-            self.pc.south_bridge.cxlmemory.BAR0.size = cxl_mem_size_
-            self.pc.south_bridge.cxlmemory.numa_flag = cxl_numa_
+            self.pc.south_bridge.cxlmemory.BAR0.size = self._cxl_mem_size
+            if self._is_asic:
+                self.pc.south_bridge.cxlmemory.device_proto_proc_lat = Latency("15ns")
+            else:
+                self.pc.south_bridge.cxlmemory.device_proto_proc_lat = Latency("60ns")
 
             self.apicbridge = Bridge(delay="50ns")
             self.apicbridge.cpu_side_port = self.get_io_bus().mem_side_ports
@@ -270,8 +274,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
             X86E820Entry(addr=0xFFFF0000, size="64kB", range_type=2)
         )
 
-        if cxl_numa_:
-            entries.append(X86E820Entry(addr=0x100000000, size=cxl_mem_size_, range_type=1))
+        entries.append(X86E820Entry(addr=0x100000000, size=self._cxl_mem_size, range_type=1))
 
         self.workload.e820_table.entries = entries
 

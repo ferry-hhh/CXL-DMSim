@@ -97,7 +97,7 @@ def build_test_system(np, isa: ISA):
         )
     elif isa == ISA.X86:
         test_sys = makeLinuxX86System(
-            test_mem_mode, args.cxl_mem_size, args.cxl_numa, np, bm[0], args.ruby, cmdline=cmdline, 
+            test_mem_mode, args.cxl_mem_size, np, bm[0], args.ruby, cmdline=cmdline, 
         )
     elif isa == ISA.ARM:
         test_sys = makeArmSystem(

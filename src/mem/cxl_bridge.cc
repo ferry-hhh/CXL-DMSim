@@ -58,11 +58,11 @@ namespace gem5
 CXLBridge::BridgeResponsePort::BridgeResponsePort(const std::string& _name,
                                          CXLBridge& _bridge,
                                          BridgeRequestPort& _memSidePort,
-                                         Cycles _delay, Cycles _cxl_delay, int _resp_limit,
-                                         std::vector<AddrRange> _ranges)
+                                         Cycles _bridge_lat, Cycles _host_proto_proc_lat,
+                                         int _resp_limit, std::vector<AddrRange> _ranges)
     : ResponsePort(_name), bridge(_bridge),
-      memSidePort(_memSidePort), delay(_delay),
-      cxl_delay(_cxl_delay),
+      memSidePort(_memSidePort), bridge_lat(_bridge_lat),
+      host_proto_proc_lat(_host_proto_proc_lat),
       ranges(_ranges.begin(), _ranges.end()),
       outstandingResponses(0), retryReq(false), respQueueLimit(_resp_limit),
       sendEvent([this]{ trySendTiming(); }, _name)
@@ -78,10 +78,10 @@ CXLBridge::BridgeResponsePort::BridgeResponsePort(const std::string& _name,
 CXLBridge::BridgeRequestPort::BridgeRequestPort(const std::string& _name,
                                            CXLBridge& _bridge,
                                            BridgeResponsePort& _cpuSidePort,
-                                           Cycles _delay, Cycles _cxl_delay, int _req_limit)
+                                           Cycles _bridge_lat, Cycles _host_proto_proc_lat, int _req_limit)
     : RequestPort(_name), bridge(_bridge),
       cpuSidePort(_cpuSidePort),
-      delay(_delay), cxl_delay(_cxl_delay), reqQueueLimit(_req_limit),
+      bridge_lat(_bridge_lat), host_proto_proc_lat(_host_proto_proc_lat), reqQueueLimit(_req_limit),
       sendEvent([this]{ trySendTiming(); }, _name)
 {
 }
@@ -89,12 +89,12 @@ CXLBridge::BridgeRequestPort::BridgeRequestPort(const std::string& _name,
 CXLBridge::CXLBridge(const Params &p)
     : ClockedObject(p),
       cpuSidePort(p.name + ".cpu_side_port", *this, memSidePort,
-                ticksToCycles(p.delay), ticksToCycles(p.cxl_delay), p.resp_size, p.ranges),
+                ticksToCycles(p.bridge_lat), ticksToCycles(p.host_proto_proc_lat), p.resp_fifo_depth, p.ranges),
       memSidePort(p.name + ".mem_side_port", *this, cpuSidePort,
-                ticksToCycles(p.delay), ticksToCycles(p.cxl_delay), p.req_size)
+                ticksToCycles(p.bridge_lat), ticksToCycles(p.host_proto_proc_lat), p.req_fifo_depth)
 {
-    DPRINTF(CXLMemory, "p.delay=%ld, ticksToCycles(p.delay)=%ld, p.cxl_delay=%ld, ticksToCycles(p.cxl_delay)=%ld\n",
-            p.delay, ticksToCycles(p.delay), p.cxl_delay, ticksToCycles(p.cxl_delay));
+    DPRINTF(CXLMemory, "p.bridge_lat=%ld, ticksToCycles(p.bridge_lat)=%ld, p.host_proto_proc_lat=%ld, ticksToCycles(p.host_proto_proc_lat)=%ld\n",
+            p.bridge_lat, ticksToCycles(p.bridge_lat), p.host_proto_proc_lat, ticksToCycles(p.host_proto_proc_lat));
 }
 
 Port &
@@ -147,9 +147,9 @@ CXLBridge::BridgeRequestPort::recvTimingResp(PacketPtr pkt)
     // the two sides of the bridge are synchronous)
     Tick receive_delay = pkt->headerDelay + pkt->payloadDelay;
     pkt->headerDelay = pkt->payloadDelay = 0;
-    auto total_delay = delay;
+    auto total_delay = bridge_lat;
     if (pkt->getAddr() >= cpuSidePort.cxl_range.start() && pkt->getAddr() < cpuSidePort.cxl_range.end()) {
-        total_delay = delay + cxl_delay;
+        total_delay = bridge_lat + host_proto_proc_lat;
         DPRINTF(CXLMemory, "recvTimingResp: %s addr 0x%x, when tick%ld\n", 
             pkt->cmdString(), pkt->getAddr(), bridge.clockEdge(total_delay) + receive_delay);
     }
@@ -201,14 +201,14 @@ CXLBridge::BridgeResponsePort::recvTimingReq(PacketPtr pkt)
 
         if (!retryReq) {
             // technically the packet only reaches us after the header
-            // delay, and typically we also need to deserialise any
+            // bridge_lat, and typically we also need to deserialise any
             // payload (unless the two sides of the bridge are
             // synchronous)
             Tick receive_delay = pkt->headerDelay + pkt->payloadDelay;
             pkt->headerDelay = pkt->payloadDelay = 0;
-            auto total_delay = delay;
+            auto total_delay = bridge_lat;
             if (pkt->getAddr() >= cxl_range.start() && pkt->getAddr() < cxl_range.end()) {
-                total_delay = delay + cxl_delay;
+                total_delay = bridge_lat + host_proto_proc_lat;
                 DPRINTF(CXLMemory, "recvTimingReq: %s addr 0x%x, when tick%ld\n", 
                     pkt->cmdString(), pkt->getAddr(), bridge.clockEdge(total_delay) + receive_delay);
             }
@@ -371,13 +371,13 @@ CXLBridge::BridgeResponsePort::recvAtomic(PacketPtr pkt)
         else if(pkt->cmd == MemCmd::WriteReq) { pkt->cmd = MemCmd::M2SRwD; }
         else { DPRINTF(CXLMemory, "the cmd of packet is %s, not a read or write.\n", pkt->cmd.toString()); }
         Tick access_delay = memSidePort.sendAtomic(pkt);
-        Tick total_delay = (delay + cxl_delay) * bridge.clockPeriod() + access_delay;
-        DPRINTF(CXLMemory, "bridge delay=%ld, bridge.clockPeriod=%ld, access_delay=%ld, cxl_delay=%ld, total=%ld\n",
-            delay, bridge.clockPeriod(), access_delay, cxl_delay, total_delay);
+        Tick total_delay = (bridge_lat + host_proto_proc_lat) * bridge.clockPeriod() + access_delay;
+        DPRINTF(CXLMemory, "bridge latency=%ld, bridge.clockPeriod=%ld, access_delay=%ld, host_proto_proc_lat=%ld, total=%ld\n",
+            bridge_lat, bridge.clockPeriod(), access_delay, host_proto_proc_lat, total_delay);
         return total_delay;
     }
     else {
-        return delay * bridge.clockPeriod() + memSidePort.sendAtomic(pkt);
+        return bridge_lat * bridge.clockPeriod() + memSidePort.sendAtomic(pkt);
     }
 }
 
@@ -385,7 +385,7 @@ Tick
 CXLBridge::BridgeResponsePort::recvAtomicBackdoor(
     PacketPtr pkt, MemBackdoorPtr &backdoor)
 {
-    return delay * bridge.clockPeriod() + memSidePort.sendAtomicBackdoor(
+    return bridge_lat * bridge.clockPeriod() + memSidePort.sendAtomicBackdoor(
         pkt, backdoor);
 }
 

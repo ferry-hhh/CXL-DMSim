@@ -471,6 +471,15 @@ def repeatSwitch(testsys, repeat_switch_cpu_list, maxtick, switch_freq):
             return exit_event
 
 
+def oneSwitchCPU(testsys, switch_cpu_list):
+    print("starting one switch CPU")
+    exit_event = m5.simulate()
+    exit_cause = exit_event.getCause()
+
+    if exit_cause == "exit":
+        m5.switchCpus(testsys, switch_cpu_list)
+
+
 def run(options, root, testsys, cpu_class):
     if options.checkpoint_dir:
         cptdir = options.checkpoint_dir
@@ -812,6 +821,19 @@ def run(options, root, testsys, cpu_class):
             )
         else:
             exit_event = benchCheckpoints(options, maxtick, cptdir)
+        
+        if options.one_switch_cpu:
+            switch_cpus = [
+                TimingSimpleCPU(switched_out=True, cpu_id=(i)) for i in range(np)
+            ]
+            for i in range(np):
+                switch_cpus[i].system = testsys
+                switch_cpus[i].workload = testsys.cpu[i].workload
+                switch_cpus[i].clk_domain = testsys.cpu[i].clk_domain
+                switch_cpus[i].isa = testsys.cpu[i].isa
+
+            switch_cpus[i].createThreads()
+            exit_event = oneSwitchCPU(testsys, switch_cpus)
 
     print(
         "Exiting @ tick %i because %s" % (m5.curTick(), exit_event.getCause())

@@ -77,11 +77,6 @@ class PioPort : public SimpleTimingPort
 
         const Tick delay =
             pkt->isRead() ? device->read(pkt) : device->write(pkt);
-        if (pkt->getAddr() >= 0x100000000 && pkt->getAddr() < 0x300000000) {
-          DPRINTF(CXLMemory, "the cmd of pkt is %s, addrRange is %s.\n", pkt->cmd.toString(), pkt->getAddrRange().to_string());
-          DPRINTF(CXLMemory, "io_device delay=%llu, receive_delay=%llu\n", delay, receive_delay);
-          }
-        // assert(pkt->isResponse() || pkt->isError());
         return delay + receive_delay;
     }
 

@@ -49,6 +49,8 @@ class AbstractSystemBoard(System, AbstractBoard):
         processor: "AbstractProcessor",
         memory: "AbstractMemorySystem",
         cache_hierarchy: "AbstractCacheHierarchy",
+        cxl_mem_size: str,
+        is_asic: bool,
     ):
         System.__init__(self)
         AbstractBoard.__init__(
@@ -57,6 +59,8 @@ class AbstractSystemBoard(System, AbstractBoard):
             processor=processor,
             memory=memory,
             cache_hierarchy=cache_hierarchy,
+            cxl_mem_size=cxl_mem_size,
+            is_asic=is_asic,
         )
 
     @overrides(SimObject)
