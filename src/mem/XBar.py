@@ -120,10 +120,10 @@ class CoherentXBar(BaseXBar):
     snoop_filter = Param.SnoopFilter(NULL, "Selected snoop filter")
 
     # Maximum number of outstanding snoop requests for sanity checks
-    max_outstanding_snoops = Param.Int(1024, "Max. outstanding snoops allowed")
+    max_outstanding_snoops = Param.Int(2048, "Max. outstanding snoops allowed")
 
     # Maximum routing table size for sanity checks
-    max_routing_table_size = Param.Int(1024, "Max. routing table size")
+    max_routing_table_size = Param.Int(2048, "Max. routing table size")
 
     # Determine how this crossbar handles packets where caches have
     # already committed to responding, by establishing if the crossbar
@@ -186,6 +186,7 @@ class L3XBar(CoherentXBar):
     response_latency = 1
     snoop_response_latency = 1
     snoop_filter = SnoopFilter(lookup_latency = 0)
+    point_of_unification = True
 
 
 # One of the key coherent crossbar instances is the system

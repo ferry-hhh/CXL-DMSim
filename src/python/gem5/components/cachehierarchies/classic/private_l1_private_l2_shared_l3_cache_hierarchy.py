@@ -151,12 +151,12 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
         self.l3cache = L3Cache(size=self._l3_size, assoc=self._l3_assoc)
         # ITLB Page walk caches
         self.iptw_caches = [
-            MMUCache(size="8KiB", writeback_clean=False)
+            MMUCache(size="256KiB", writeback_clean=False)
             for _ in range(board.get_processor().get_num_cores())
         ]
         # DTLB Page walk caches
         self.dptw_caches = [
-            MMUCache(size="8KiB", writeback_clean=False)
+            MMUCache(size="256KiB", writeback_clean=False)
             for _ in range(board.get_processor().get_num_cores())
         ]
 

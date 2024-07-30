@@ -379,6 +379,8 @@ class Packet : public Printable, public Extensible<Packet>
     /// The command field of the packet.
     MemCmd cmd;
 
+    MemCmd cxl_cmd;
+
     const PacketId id;
 
     /// A pointer to the original request.
@@ -1076,6 +1078,13 @@ class Packet : public Printable, public Extensible<Packet>
         // responses are never express, even if the snoop that
         // triggered them was
         flags.clear(EXPRESS_SNOOP);
+    }
+
+    void
+    makeCXLResponse()
+    {
+        cxl_cmd = cxl_cmd.responseCommand();
+        this->makeResponse();
     }
 
     void

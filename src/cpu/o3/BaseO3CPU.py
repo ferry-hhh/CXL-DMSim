@@ -78,9 +78,9 @@ class BaseO3CPU(BaseCPU):
     activity = Param.Unsigned(0, "Initial count")
 
     cacheStorePorts = Param.Unsigned(
-        200, "Cache Ports. Constrains stores only."
+        4, "Cache Ports. Constrains stores only."
     )
-    cacheLoadPorts = Param.Unsigned(200, "Cache Ports. Constrains loads only.")
+    cacheLoadPorts = Param.Unsigned(4, "Cache Ports. Constrains loads only.")
 
     decodeToFetchDelay = Param.Cycles(1, "Decode to fetch delay")
     renameToFetchDelay = Param.Cycles(1, "Rename to fetch delay")
@@ -131,10 +131,10 @@ class BaseO3CPU(BaseCPU):
     fetchTrapLatency = Param.Cycles(1, "Fetch trap latency")
 
     backComSize = Param.Unsigned(
-        5, "Time buffer size for backwards communication"
+        24, "Time buffer size for backwards communication"
     )
     forwardComSize = Param.Unsigned(
-        5, "Time buffer size for forward communication"
+        24, "Time buffer size for forward communication"
     )
 
     LQEntries = Param.Unsigned(128, "Number of load queue entries")

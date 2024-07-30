@@ -45,7 +45,7 @@ namespace gem5
 
         AddrRangeList getAddrRanges() const override;
 
-        Tick resolve_cxl_mem(PacketPtr ptk);
+        Tick process_cxl_mem(PacketPtr ptk);
         using Param = CXLMemoryParams;
         CXLMemory(const Param &p);
     };

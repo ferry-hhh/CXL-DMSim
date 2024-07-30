@@ -19,7 +19,7 @@ CXLMemory::CXLMemory(const Param &p)
 Tick CXLMemory::read(PacketPtr pkt) {
     DPRINTF(CXLMemory, "read address : (%lx, %lx)\n", pkt->getAddr(),
             pkt->getSize());
-    Tick cxl_latency = resolve_cxl_mem(pkt);
+    Tick cxl_latency = process_cxl_mem(pkt);
     _mem.access(pkt);
     Tick read_latency = (_medium_access_lat + cxl_latency) * this->clockPeriod();
     DPRINTF(CXLMemory, "read latency = %llu\n", read_latency);
@@ -29,7 +29,7 @@ Tick CXLMemory::read(PacketPtr pkt) {
 Tick CXLMemory::write(PacketPtr pkt) {
     DPRINTF(CXLMemory, "write address : (%lx, %lx)\n", pkt->getAddr(),
             pkt->getSize());
-    Tick cxl_latency = resolve_cxl_mem(pkt);
+    Tick cxl_latency = process_cxl_mem(pkt);
     _mem.access(pkt);
     Tick write_latency = (_medium_access_lat + cxl_latency) * this->clockPeriod();
     DPRINTF(CXLMemory, "write latency = %llu\n", write_latency);
@@ -42,13 +42,11 @@ AddrRangeList CXLMemory::getAddrRanges() const {
     return ranges;
 }
 
-Tick CXLMemory::resolve_cxl_mem(PacketPtr pkt) {
-    if (pkt->cmd == MemCmd::M2SReq) {
+Tick CXLMemory::process_cxl_mem(PacketPtr pkt) {
+    if (pkt->cxl_cmd == MemCmd::M2SReq) {
         assert(pkt->isRead());
-        assert(pkt->needsResponse());
-    } else if (pkt->cmd == MemCmd::M2SRwD) {
+    } else if (pkt->cxl_cmd == MemCmd::M2SRwD) {
         assert(pkt->isWrite());
-        assert(pkt->needsResponse());
     }
     return _device_proto_proc_lat * 2;
 }
@@ -136,7 +134,7 @@ void CXLMemory::Memory::access(PacketPtr pkt) {
         panic("Unexpected packet %s", pkt->print());
     }
     if (pkt->needsResponse()) {
-        pkt->makeResponse();
+        pkt->makeCXLResponse();
     }
 }
 
