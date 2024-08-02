@@ -27,7 +27,8 @@
 """
 
 This script shows an example of running a CXL-DMSim simulation
-using the gem5 library. This simulation boots Ubuntu 18.04 using 1 Atomic CPU
+using the gem5 library and defaults to simulating CXL ASIC Device.
+This simulation boots Ubuntu 18.04 using 1 Atomic CPU
 cores. The simulation then switches to 1 O3 CPU cores to run the lmbench_cxl.sh.
 
 Usage
@@ -38,6 +39,7 @@ scons build/X86/gem5.opt
 build/X86/gem5.opt configs/example/gem5_library/x86-cxl-run.py
 ```
 """
+import argparse
 
 import m5
 from gem5.utils.requires import requires
@@ -61,6 +63,18 @@ from gem5.components.cachehierarchies.classic.private_l1_private_l2_shared_l3_ca
     PrivateL1PrivateL2SharedL3CacheHierarchy,
 )
 
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument('--is_asic', action='store', type=str, nargs='?', choices=['True', 'False'], default='True', help='Choose to simulate CXL ASIC Device or FPGA Device.')
+parser.add_argument('--test_cmd', type=str, choices=['lmbench_cxl.sh', 
+                                                     'lmbench_dram.sh', 
+                                                     'merci_dram.sh', 
+                                                     'merci_cxl.sh', 
+                                                     'merci_dram+cxl.sh'], default='lmbench_cxl.sh', help='Choose a test to run.')
+parser.add_argument('--num_cpus', type=int, default=1, help='Number of CPUs')
+parser.add_argument('--cpu_type', type=str, choices=['TIMING', 'O3'], default='O3', help='CPU type')
+
+args = parser.parse_args()
+
 # Here we setup a MESI Three Level Cache Hierarchy.
 cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
     l1d_size="48kB",
@@ -82,11 +96,12 @@ memory = DIMM_DDR5_4400(size="3GB")
 # from the starting core types to the switch core types. In this simulation
 # we start with ATOMIC cores to simulate the OS boot, then switch to the O3
 # cores for the command we wish to run after boot.
+
 processor = SimpleSwitchableProcessor(
     starting_core_type=CPUTypes.ATOMIC,
-    switch_core_type=CPUTypes.O3,
+    switch_core_type = CPUTypes.O3 if args.cpu_type == 'O3' else CPUTypes.TIMING,
     isa=ISA.X86,
-    num_cores=1,
+    num_cores=args.num_cpus,
 )
 
 # Here we setup the board and CXL device memory size. The X86Board allows for Full-System X86 simulations.
@@ -95,8 +110,8 @@ board = X86Board(
     processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
-    cxl_mem_size="16GB",
-    is_asic=True
+    cxl_mem_size="8GB",
+    is_asic=(args.is_asic == 'True')
 )
 
 # Here we set the Full System workload.
@@ -110,9 +125,8 @@ board = X86Board(
 # output.
 command = (
     "m5 exit;"
-    + "cd ../home/cxl_benchmark;"
     + "numactl -H;"
-    + "./lmbench_cxl.sh;"
+    + "/home/cxl_benchmark/" + args.test_cmd + ";"
 )
 
 board.set_kernel_disk_workload(
