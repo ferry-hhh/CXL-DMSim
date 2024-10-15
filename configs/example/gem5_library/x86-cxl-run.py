@@ -29,13 +29,13 @@
 This script shows an example of running a CXL-DMSim simulation
 using the gem5 library and defaults to simulating CXL ASIC Device.
 This simulation boots Ubuntu 18.04 using 1 Atomic CPU
-cores. The simulation then switches to 1 O3 CPU cores to run the lmbench_cxl.sh.
+cores. The simulation then switches to 1 TIMING CPU core to run the lmbench_cxl.sh.
 
 Usage
 -----
 
 ```
-scons build/X86/gem5.opt
+scons build/X86/gem5.opt -j16
 build/X86/gem5.opt configs/example/gem5_library/x86-cxl-run.py
 ```
 """
@@ -71,7 +71,7 @@ parser.add_argument('--test_cmd', type=str, choices=['lmbench_cxl.sh',
                                                      'merci_cxl.sh', 
                                                      'merci_dram+cxl.sh'], default='lmbench_cxl.sh', help='Choose a test to run.')
 parser.add_argument('--num_cpus', type=int, default=1, help='Number of CPUs')
-parser.add_argument('--cpu_type', type=str, choices=['TIMING', 'O3'], default='O3', help='CPU type')
+parser.add_argument('--cpu_type', type=str, choices=['TIMING', 'O3'], default='TIMING', help='CPU type')
 
 args = parser.parse_args()
 
@@ -126,12 +126,14 @@ board = X86Board(
 command = (
     "m5 exit;"
     + "numactl -H;"
+    + "m5 resetstats;"
     + "/home/cxl_benchmark/" + args.test_cmd + ";"
 )
 
+# Please modify the paths of kernel and disk_image according to the location of your files.
 board.set_kernel_disk_workload(
-    kernel=KernelResource(local_path='/home/wyj/code/fs_image/vmlinux'),
-    disk_image=DiskImageResource(local_path='/home/wyj/code/fs_image/parsec.img'),
+    kernel=KernelResource(local_path='/home/xxx/code/fs_image/vmlinux'),
+    disk_image=DiskImageResource(local_path='/home/xxx/code/fs_image/parsec.img'),
     readfile_contents=command,
 )
 
