@@ -82,6 +82,7 @@ class AbstractBoard:
         cache_hierarchy: Optional["AbstractCacheHierarchy"],
         cxl_mem_size: str,
         is_asic: bool,
+        cxl_mem_type: str,
     ) -> None:
         """
         :param clk_freq: The clock frequency for this board.
@@ -110,6 +111,7 @@ class AbstractBoard:
         # Set the CXL memory size and whether the device is an ASIC or not.
         self._cxl_mem_size = cxl_mem_size
         self._is_asic = is_asic
+        self._cxl_mem_type = cxl_mem_type
         # This variable determines whether the board is to be executed in
         # full-system or syscall-emulation mode. This is set when the workload
         # is defined. Whether or not the board is to be run in FS mode is

@@ -1,6 +1,7 @@
 #include "base/trace.hh"
 #include "dev/storage/cxl_memory.hh"
 #include "debug/CXLMemory.hh"
+#include <cstddef>
 
 namespace gem5
 {
@@ -10,8 +11,10 @@ CXLMemory::CXLMemory(const Param &p)
     _mem(RangeSize(p.BAR0->addr(), p.BAR0->size()), *this),
     _medium_access_lat(ticksToCycles(p.medium_access_lat)),
     _device_proto_proc_lat(ticksToCycles(p.device_proto_proc_lat)),
-    _cxl_mem_range(p.cxl_mem_range)
+    _cxl_mem_range(p.cxl_mem_range),
+    ctrl(p.ctrl)
     {
+        ctrl->setPioPort(&pioPort);
         DPRINTF(CXLMemory, "BAR0_addr:0x%lx, BAR0_size:0x%lx\n", p.BAR0->addr(),
             p.BAR0->size());
     }
@@ -20,8 +23,13 @@ Tick CXLMemory::read(PacketPtr pkt) {
     DPRINTF(CXLMemory, "read address : (%lx, %lx)\n", pkt->getAddr(),
             pkt->getSize());
     Tick cxl_latency = process_cxl_mem(pkt);
-    _mem.access(pkt);
-    Tick read_latency = (_medium_access_lat + cxl_latency) * this->clockPeriod();
+    Tick mem_latency = 0;
+    if (_medium_access_lat == 0) {
+        mem_latency = ctrl->recvAtomic(pkt);
+    } else {
+        _mem.access(pkt);
+    }
+    Tick read_latency = (_medium_access_lat + cxl_latency + mem_latency) * this->clockPeriod();
     DPRINTF(CXLMemory, "read latency = %llu\n", read_latency);
     return read_latency;
 }
@@ -30,8 +38,13 @@ Tick CXLMemory::write(PacketPtr pkt) {
     DPRINTF(CXLMemory, "write address : (%lx, %lx)\n", pkt->getAddr(),
             pkt->getSize());
     Tick cxl_latency = process_cxl_mem(pkt);
-    _mem.access(pkt);
-    Tick write_latency = (_medium_access_lat + cxl_latency) * this->clockPeriod();
+    Tick mem_latency = 0;
+    if (_medium_access_lat == 0) {
+        mem_latency = ctrl->recvAtomic(pkt);
+    } else {
+        _mem.access(pkt);
+    }
+    Tick write_latency = (_medium_access_lat + cxl_latency + mem_latency) * this->clockPeriod();
     DPRINTF(CXLMemory, "write latency = %llu\n", write_latency);
     return write_latency;
 }
@@ -52,10 +65,13 @@ Tick CXLMemory::process_cxl_mem(PacketPtr pkt) {
 }
 
 CXLMemory::Memory::Memory(const AddrRange& range, CXLMemory& owner)
-    : range(range),
-    owner(owner) {
-    pmemAddr = new uint8_t[range.size()];
-    DPRINTF(CXLMemory, "initial range start=0x%lx, range size=0x%lx\n", range.start(), range.size());
+    : range(range), owner(owner) {
+    if (owner._medium_access_lat == 0) {
+        pmemAddr = nullptr;
+    } else {
+        pmemAddr = new uint8_t[range.size()];
+        DPRINTF(CXLMemory, "initial range start=0x%lx, range size=0x%lx\n", range.start(), range.size());
+    }
 }
 
 void CXLMemory::Memory::access(PacketPtr pkt) {

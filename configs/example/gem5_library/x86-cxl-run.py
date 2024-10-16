@@ -72,6 +72,7 @@ parser.add_argument('--test_cmd', type=str, choices=['lmbench_cxl.sh',
                                                      'merci_dram+cxl.sh'], default='lmbench_cxl.sh', help='Choose a test to run.')
 parser.add_argument('--num_cpus', type=int, default=1, help='Number of CPUs')
 parser.add_argument('--cpu_type', type=str, choices=['TIMING', 'O3'], default='TIMING', help='CPU type')
+parser.add_argument('--cxl_mem_type', type=str, choices=['Simple', 'DRAM'], default='Simple', help='CXL memory type')
 
 args = parser.parse_args()
 
@@ -111,7 +112,8 @@ board = X86Board(
     memory=memory,
     cache_hierarchy=cache_hierarchy,
     cxl_mem_size="8GB",
-    is_asic=(args.is_asic == 'True')
+    is_asic=(args.is_asic == 'True'),
+    cxl_mem_type=(args.cxl_mem_type)
 )
 
 # Here we set the Full System workload.

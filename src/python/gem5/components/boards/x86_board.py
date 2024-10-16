@@ -59,6 +59,7 @@ from ...resources.resource import AbstractResource
 from ...utils.override import overrides
 from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
 from ..memory.abstract_memory_system import AbstractMemorySystem
+from ..memory.dram_interfaces.cxl_ddr import CXL_DDR4_2400_8x8
 from ..processors.abstract_processor import AbstractProcessor
 from .abstract_system_board import AbstractSystemBoard
 from .kernel_disk_workload import KernelDiskWorkload
@@ -81,6 +82,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         cache_hierarchy: AbstractCacheHierarchy,
         cxl_mem_size: str,
         is_asic: bool,
+        cxl_mem_type: str,
     ) -> None:
         super().__init__(
             clk_freq=clk_freq,
@@ -89,6 +91,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
             cache_hierarchy=cache_hierarchy,
             cxl_mem_size=cxl_mem_size,
             is_asic=is_asic,
+            cxl_mem_type=cxl_mem_type,
         )
 
         if self.get_processor().get_isa() != ISA.X86:
@@ -165,7 +168,14 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
                 self.pc.south_bridge.cxlmemory.device_proto_proc_lat = Latency("15ns")
             else:
                 self.pc.south_bridge.cxlmemory.device_proto_proc_lat = Latency("60ns")
-
+            
+            if self._cxl_mem_type == "Simple":
+                self.pc.south_bridge.cxlmemory.medium_access_lat = Latency("50ns")
+            else:
+                self.pc.south_bridge.cxlmemory.medium_access_lat = Latency("0ns")
+                interface = CXL_DDR4_2400_8x8()
+                interface.range = self.cxl_mem_range
+                self.pc.south_bridge.cxlmemory.ctrl = interface.controller()
             self.apicbridge = Bridge(delay="50ns")
             self.apicbridge.cpu_side_port = self.get_io_bus().mem_side_ports
             self.apicbridge.mem_side_port = (

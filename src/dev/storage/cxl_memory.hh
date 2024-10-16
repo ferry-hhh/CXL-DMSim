@@ -5,6 +5,7 @@
 #include "mem/packet_access.hh"
 #include "params/CXLMemory.hh"
 #include "dev/pci/device.hh"
+#include "dev/storage/cxl_mem_ctrl.hh"
 
 namespace gem5
 {
@@ -38,6 +39,7 @@ namespace gem5
         Tick _medium_access_lat;
         Tick _device_proto_proc_lat;
         AddrRange _cxl_mem_range;
+        CXLMemCtrl* ctrl;
 
         public:
         Tick read(PacketPtr pkt) override;
