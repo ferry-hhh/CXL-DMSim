@@ -46,8 +46,19 @@ namespace gem5
 
 SimpleTimingPort::SimpleTimingPort(const std::string& _name,
                                    SimObject* _owner) :
-    QueuedResponsePort(_name, queueImpl), queueImpl(*_owner, *this)
+    QueuedResponsePort(_name, queueImpl), queueImpl(*_owner, *this), stats(*_owner)
 {
+}
+
+SimpleTimingPort::CXLPortStats::CXLPortStats(SimObject &_stport)
+    : statistics::Group(&_stport),
+
+      ADD_STAT(ioRsp, "Distribution of the time intervals between "
+               "consecutive I/O responses from the I/O device to the Bridge")
+{
+    ioRsp
+        .init(75000, 85999, 1000)
+        .flags(statistics::nozero);
 }
 
 void
@@ -76,6 +87,7 @@ SimpleTimingPort::recvTimingReq(PacketPtr pkt)
         // recvAtomic() should already have turned packet into
         // atomic response
         assert(pkt->isResponse());
+        stats.ioRsp.sample(latency);
         schedTimingResp(pkt, curTick() + latency);
     } else {
         // queue the packet for deletion

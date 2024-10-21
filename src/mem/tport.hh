@@ -47,6 +47,7 @@
  * Declaration of SimpleTimingPort.
  */
 
+#include "base/statistics.hh"
 #include "mem/qport.hh"
 
 namespace gem5
@@ -73,6 +74,15 @@ class SimpleTimingPort : public QueuedResponsePort
     RespPacketQueue queueImpl;
 
   protected:
+
+
+    struct CXLPortStats : public statistics::Group
+    {
+        CXLPortStats(SimObject &stport);
+        statistics::Distribution ioRsp;
+    };
+
+    CXLPortStats stats;
 
     /** Implemented using recvAtomic(). */
     void recvFunctional(PacketPtr pkt);

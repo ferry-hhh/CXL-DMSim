@@ -91,10 +91,29 @@ CXLBridge::CXLBridge(const Params &p)
       cpuSidePort(p.name + ".cpu_side_port", *this, memSidePort,
                 ticksToCycles(p.bridge_lat), ticksToCycles(p.host_proto_proc_lat), p.resp_fifo_depth, p.ranges),
       memSidePort(p.name + ".mem_side_port", *this, cpuSidePort,
-                ticksToCycles(p.bridge_lat), ticksToCycles(p.host_proto_proc_lat), p.req_fifo_depth)
+                ticksToCycles(p.bridge_lat), ticksToCycles(p.host_proto_proc_lat), p.req_fifo_depth),
+        curRspTick(0),
+        stats(*this)
 {
     DPRINTF(CXLMemory, "p.bridge_lat=%ld, ticksToCycles(p.bridge_lat)=%ld, p.host_proto_proc_lat=%ld, ticksToCycles(p.host_proto_proc_lat)=%ld\n",
             p.bridge_lat, ticksToCycles(p.bridge_lat), p.host_proto_proc_lat, ticksToCycles(p.host_proto_proc_lat));
+}
+
+CXLBridge::CXLBridgeStats::CXLBridgeStats(CXLBridge &_bridge)
+    : statistics::Group(&_bridge),
+
+      ADD_STAT(reqQueFullEvents, statistics::units::Count::get(),
+               "Number of times the request queue has become full (Counts)"),
+      ADD_STAT(reqRetryCounts, statistics::units::Count::get(),
+               "Number of times the request was sent for retry (Counts)"),
+      ADD_STAT(rspQueFullEvents, statistics::units::Count::get(),
+               "Number of times the response queue has become full (Counts)"),
+      ADD_STAT(ioToBridgeRsp, "Distribution of the time intervals between "
+               "consecutive I/O responses from the I/O device to the Bridge")
+{
+    ioToBridgeRsp
+        .init(0, 299, 10)
+        .flags(statistics::nozero);
 }
 
 Port &
@@ -123,13 +142,23 @@ CXLBridge::init()
 bool
 CXLBridge::BridgeResponsePort::respQueueFull() const
 {
-    return outstandingResponses == respQueueLimit;
+    if (outstandingResponses == respQueueLimit) {
+        bridge.stats.rspQueFullEvents++;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool
 CXLBridge::BridgeRequestPort::reqQueueFull() const
 {
-    return transmitList.size() == reqQueueLimit;
+    if (transmitList.size() == reqQueueLimit) {
+        bridge.stats.reqQueFullEvents++;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool
@@ -141,6 +170,12 @@ CXLBridge::BridgeRequestPort::recvTimingResp(PacketPtr pkt)
             pkt->cmdString(), pkt->getAddr());
 
     DPRINTF(Bridge, "Request queue size: %d\n", transmitList.size());
+
+    if (bridge.curRspTick == 0) {
+        bridge.curRspTick = bridge.clockEdge();
+    } else {
+        bridge.stats.ioToBridgeRsp.sample(bridge.ticksToCycles(bridge.clockEdge()-bridge.curRspTick));
+    }
 
     // technically the packet only reaches us after the header delay,
     // and typically we also need to deserialise any payload (unless
@@ -245,6 +280,7 @@ CXLBridge::BridgeResponsePort::retryStalledReq()
         DPRINTF(Bridge, "Request waiting for retry, now retrying\n");
         retryReq = false;
         sendRetryReq();
+        bridge.stats.reqRetryCounts++;
     }
 }
 
@@ -354,6 +390,7 @@ CXLBridge::BridgeResponsePort::trySendTiming()
             DPRINTF(Bridge, "Request waiting for retry, now retrying\n");
             retryReq = false;
             sendRetryReq();
+            bridge.stats.reqRetryCounts++;
         }
     }
 
