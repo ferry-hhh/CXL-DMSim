@@ -16,7 +16,7 @@ class CXLDRAMInterface : public memory::DRAMInterface
         {
             return pmemAddr + addr - range.start();
         }
-        
+
 };
 
 }

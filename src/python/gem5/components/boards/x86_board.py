@@ -80,18 +80,18 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         processor: AbstractProcessor,
         memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
+        cxl_memory: AbstractMemorySystem,
         cxl_mem_size: str,
         is_asic: bool,
-        cxl_mem_type: str,
     ) -> None:
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
             memory=memory,
             cache_hierarchy=cache_hierarchy,
+            cxl_memory=cxl_memory,
             cxl_mem_size=cxl_mem_size,
-            is_asic=is_asic,
-            cxl_mem_type=cxl_mem_type,
+            is_asic=is_asic
         )
 
         if self.get_processor().get_isa() != ISA.X86:
@@ -133,6 +133,13 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
         if self.get_cache_hierarchy().is_ruby():
             self.pc.attachIO(self.get_io_bus(), [self.pc.south_bridge.ide.dma])
         else:
+            # # Constants similar to x86_traits.hh
+            IO_address_space_base = 0x8000000000000000
+            pci_config_address_space_base = 0xC000000000000000
+            interrupts_address_space_base = 0xA000000000000000
+            APIC_range_size = 1 << 12
+
+            # Configure CXLBridge
             if self._is_asic:
                 self.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=52, resp_fifo_depth=52)
             else:
@@ -141,16 +148,8 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
             self.bridge.cpu_side_port = (
                 self.get_cache_hierarchy().get_mem_side_port()
             )
-
-            # # Constants similar to x86_traits.hh
-            IO_address_space_base = 0x8000000000000000
-            pci_config_address_space_base = 0xC000000000000000
-            interrupts_address_space_base = 0xA000000000000000
-            APIC_range_size = 1 << 12
-
             cxl_mem_start = 0x100000000
-            cxl_mem_range = AddrRange(self._cxl_mem_size).size()
-            cxl_mem_end = cxl_mem_start + cxl_mem_range
+            cxl_mem_end = cxl_mem_start + AddrRange(self._cxl_mem_size).size()
             self.bridge.ranges = [
                 AddrRange(0xC0000000, 0xFFFF0000),
                 AddrRange(cxl_mem_start, cxl_mem_end),
@@ -160,7 +159,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
                 AddrRange(pci_config_address_space_base, Addr.max),
             ]
 
-            # Configure the CXL memory
+            # Configure CXL ctrl
             self.cxl_mem_range = AddrRange(cxl_mem_start, cxl_mem_end)
             self.pc.south_bridge.cxlmemory.cxl_mem_range = AddrRange(cxl_mem_start, cxl_mem_end)
             self.pc.south_bridge.cxlmemory.BAR0.size = self._cxl_mem_size
@@ -168,14 +167,12 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
                 self.pc.south_bridge.cxlmemory.device_proto_proc_lat = Latency("15ns")
             else:
                 self.pc.south_bridge.cxlmemory.device_proto_proc_lat = Latency("60ns")
-            
-            if self._cxl_mem_type == "Simple":
-                self.pc.south_bridge.cxlmemory.medium_access_lat = Latency("50ns")
-            else:
-                self.pc.south_bridge.cxlmemory.medium_access_lat = Latency("0ns")
-                interface = CXL_DDR4_2400_8x8()
-                interface.range = self.cxl_mem_range
-                self.pc.south_bridge.cxlmemory.ctrl = interface.controller()
+            # Configure CXL backend memory
+            cxl_dram = self.get_cxl_memory()
+            cxl_dram.range = self.cxl_mem_range
+            self.pc.south_bridge.cxlmemory.ctrl = cxl_dram.controller()
+            self.memories.append(self.pc.south_bridge.cxlmemory.ctrl.dram)
+
             self.apicbridge = Bridge(delay="50ns")
             self.apicbridge.cpu_side_port = self.get_io_bus().mem_side_ports
             self.apicbridge.mem_side_port = (

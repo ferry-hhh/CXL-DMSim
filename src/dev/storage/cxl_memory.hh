@@ -11,44 +11,19 @@ namespace gem5
 {
     class CXLMemory : public PciDevice {
         private:
-        class Memory {
-            private:
-            AddrRange range;
-            uint8_t* pmemAddr = nullptr;
-            bool inAddrMap = true;
-            const std::string _name = "CXLMemory::Memory";
-            CXLMemory& owner;
+            CXLMemCtrl* ctrl;
+            Tick deviceProtoProcLat;
+            AddrRange cxlMemRange;
 
-            public:
-            Memory(const AddrRange& range, CXLMemory& owner);
-            inline uint8_t* toHostAddr(Addr addr) const { 
-                if (owner._cxl_mem_range.contains(addr)) 
-                    return pmemAddr + addr - owner._cxl_mem_range.start();
-                return pmemAddr + addr - range.start(); }
-            const std::string& name() const { return _name; }
-            uint64_t size() const { return range.size(); }
-            Addr start() const { return range.start(); }
-            bool isInAddrMap() const { return inAddrMap; }
-            void access(PacketPtr pkt);
-            Memory(const Memory& other) = delete;
-            Memory& operator=(const Memory& other) = delete;
-            ~Memory() { delete pmemAddr; }
-        };
-
-        Memory _mem;
-        Tick _medium_access_lat;
-        Tick _device_proto_proc_lat;
-        AddrRange _cxl_mem_range;
-        CXLMemCtrl* ctrl;
 
         public:
-        Tick read(PacketPtr pkt) override;
-        Tick write(PacketPtr pkt) override;
+            Tick read(PacketPtr pkt) override;
+            Tick write(PacketPtr pkt) override;
 
-        AddrRangeList getAddrRanges() const override;
+            AddrRangeList getAddrRanges() const override;
 
-        Tick process_cxl_mem(PacketPtr ptk);
-        using Param = CXLMemoryParams;
-        CXLMemory(const Param &p);
+            Tick processCXLMem(PacketPtr ptk);
+            using Param = CXLMemoryParams;
+            CXLMemory(const Param &p);
     };
 } // namespace gem5

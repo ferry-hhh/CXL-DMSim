@@ -40,3 +40,4 @@ Doxygen.config
 /accel_result
 typings
 include/cxl_benchmark/lmbench3
+/output
