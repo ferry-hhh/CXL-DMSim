@@ -232,7 +232,10 @@ def build_test_system(np, isa: ISA):
         ):
             CpuConfig.config_etrace(TestCPUClass, test_sys.cpu, args)
 
-        CacheConfig.config_cache(args, test_sys)
+        if args.l3cache:
+            CacheConfig.config_cache_l3(args, test_sys)
+        else:
+            CacheConfig.config_cache(args, test_sys)
 
         MemConfig.config_mem(args, test_sys)
 

@@ -465,7 +465,7 @@ def connectX86ClassicSystem(x86_sys, numCPUs, cxl_mem_size):
 
     # North Bridge
     x86_sys.iobus = IOXBar()
-    self.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=52, resp_fifo_depth=52)
+    x86_sys.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=52, resp_fifo_depth=52)
     x86_sys.bridge.mem_side_port = x86_sys.iobus.cpu_side_ports
     x86_sys.bridge.cpu_side_port = x86_sys.membus.mem_side_ports
     # Allow the bridge to pass through:

@@ -60,24 +60,51 @@ class L1Cache(Cache):
 
 
 class L1_ICache(L1Cache):
+    assoc = 6
+    tag_latency = 1
+    data_latency = 1
+    response_latency = 1
+    mshrs = 20
+    tgts_per_mshr = 20
     is_read_only = True
     # Writeback clean lines as well
     writeback_clean = True
-
+    prefetcher = IndirectMemoryPrefetcher()
 
 class L1_DCache(L1Cache):
-    pass
-
+    assoc = 8
+    tag_latency = 3
+    data_latency = 3
+    response_latency = 2
+    mshrs = 16
+    write_buffers = 16
+    tgts_per_mshr = 20
+    writeback_clean = False
+    prefetcher = IndirectMemoryPrefetcher()
 
 class L2Cache(Cache):
     assoc = 16
-    tag_latency = 12
-    data_latency = 12
-    response_latency = 12
-    mshrs = 32
+    tag_latency = 7
+    data_latency = 7
+    response_latency = 5
+    mshrs = 20
     tgts_per_mshr = 12
-    write_buffers = 32
+    write_buffers = 20
+    writeback_clean = True
+    clusivity = "mostly_incl"
+    prefetcher = L2MultiPrefetcher()
 
+class L3Cache(Cache):
+    assoc = 48
+    tag_latency = 96
+    data_latency = 96
+    response_latency = 48
+    mshrs = 384
+    tgts_per_mshr = 32
+    write_buffers = 256
+    writeback_clean = False
+    clusivity = "mostly_excl"
+    prefetcher = L2MultiPrefetcher()
 
 class IOCache(Cache):
     assoc = 8

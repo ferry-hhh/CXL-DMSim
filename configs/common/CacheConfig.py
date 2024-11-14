@@ -224,6 +224,62 @@ def config_cache(options, system):
 
     return system
 
+# PrivateL1PrivateL2SharedL3 CacheHierarchy
+def config_cache_l3(options, system):
+
+    dcache_class, icache_class, l2_cache_class, l3_cache_class, walk_cache_class = (
+        L1_DCache,
+        L1_ICache,
+        L2Cache,
+        L3Cache,
+        None,
+    )
+
+    # Set the cache line size of the system
+    system.cache_line_size = options.cacheline_size
+
+    # Provide a clock for the L2 and the L1-to-L2 bus here as they
+    # are not connected using addTwoLevelCacheHierarchy. Use the
+    # same clock as the CPUs.
+    system.l3 = l3_cache_class(
+        clk_domain=system.cpu_clk_domain, **_get_cache_opts("l3", options)
+    )
+
+    system.tol3bus = L3XBar(clk_domain=system.cpu_clk_domain)
+    system.l3.cpu_side = system.tol3bus.mem_side_ports
+    system.l3.mem_side = system.membus.cpu_side_ports
+
+    for i in range(options.num_cpus):
+        icache = icache_class(**_get_cache_opts("l1i", options))
+        dcache = dcache_class(**_get_cache_opts("l1d", options))
+        l2 = l2_cache_class(
+            clk_domain=system.cpu_clk_domain, **_get_cache_opts("l2", options))
+
+        # If we are using ISA.X86 or ISA.RISCV, we set walker caches.
+        if ObjectList.cpu_list.get_isa(options.cpu_type) in [
+            ISA.RISCV,
+            ISA.X86,
+        ]:
+            iwalkcache = PageTableWalkerCache()
+            dwalkcache = PageTableWalkerCache()
+        else:
+            iwalkcache = None
+            dwalkcache = None
+
+        # When connecting the caches, the clock is also inherited
+        # from the CPU in question
+        system.cpu[i].addTwoLevelCacheHierarchy(
+            icache, dcache, l2, iwalkcache, dwalkcache
+        )
+
+        system.cpu[i].createInterruptController()
+        system.cpu[i].connectAllPorts(
+            system.tol3bus.cpu_side_ports,
+            system.membus.cpu_side_ports,
+            system.membus.mem_side_ports,
+        )
+
+    return system
 
 # ExternalSlave provides a "port", but when that port connects to a cache,
 # the connecting CPU SimObject wants to refer to its "cpu_side".
