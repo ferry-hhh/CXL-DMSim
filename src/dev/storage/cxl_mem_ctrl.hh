@@ -4,6 +4,7 @@
 #include "mem/mem_ctrl.hh"
 #include "params/CXLMemCtrl.hh"
 #include "dev/io_device.hh"
+#include "dev/storage/cxl_memory.hh"
 
 namespace gem5
 {
@@ -21,13 +22,10 @@ class CXLMemCtrl : public memory::MemCtrl
 {
   public:
     CXLMemCtrl(const CXLMemCtrlParams &p);
-    PioPort<PioDevice>* pioPort;
-    void setPioPort(PioPort<PioDevice>* _pioPort);
+    CXLPort<CXLMemory>* cxlPort;
+    void setCXLPort(CXLPort<CXLMemory>* _cxlPort);
 
     void init() override;
-
-    Tick recvAtomic(PacketPtr pkt) override;
-
 
   protected:
     void processRespondEvent(memory::MemInterface* mem_intr,

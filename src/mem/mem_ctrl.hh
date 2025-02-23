@@ -790,6 +790,13 @@ class MemCtrl : public qos::MemCtrl
 
     bool recvFunctionalLogic(PacketPtr pkt, MemInterface* mem_intr);
     Tick recvAtomicLogic(PacketPtr pkt, MemInterface* mem_intr);
+  public:
+    bool publicRecvTimingReq(PacketPtr pkt) {
+      return recvTimingReq(pkt); 
+    }
+    Tick publicRecvAtomic(PacketPtr pkt) {
+      return recvAtomic(pkt); 
+    }
 
 };
 

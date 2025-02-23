@@ -1,3 +1,6 @@
+#ifndef __DEV_STORAGE_CXL_MEMORY_HH__
+#define __DEV_STORAGE_CXL_MEMORY_HH__
+
 #include "base/addr_range.hh"
 #include "base/trace.hh"
 #include "base/types.hh"
@@ -9,21 +12,31 @@
 
 namespace gem5
 {
-    class CXLMemory : public PciDevice {
-        private:
-            CXLMemCtrl* ctrl;
-            Tick deviceProtoProcLat;
-            AddrRange cxlMemRange;
 
+class CXLMemory : public PciDevice {
+    protected:
+        CXLPort<CXLMemory> cxlPort;
 
-        public:
-            Tick read(PacketPtr pkt) override;
-            Tick write(PacketPtr pkt) override;
+    private:
+        CXLMemCtrl* ctrl;
+        Tick deviceProtoProcLat;
+        AddrRange cxlMemRange;
 
-            AddrRangeList getAddrRanges() const override;
+    public:
+        Tick read(PacketPtr pkt) override;
+        Tick write(PacketPtr pkt) override;
+        bool read_timing(PacketPtr pkt);
+        bool write_timing(PacketPtr pkt);
 
-            Tick processCXLMem(PacketPtr ptk);
-            using Param = CXLMemoryParams;
-            CXLMemory(const Param &p);
-    };
+        AddrRangeList getAddrRanges() const override;
+        Port &getPort(const std::string &if_name, PortID idx=InvalidPortID) override;
+        void init() override;
+
+        Tick processCXLMem(PacketPtr ptk);
+        using Param = CXLMemoryParams;
+        CXLMemory(const Param &p);
+};
+
 } // namespace gem5
+
+#endif // __DEV_STORAGE_CXL_MEMORY_HH__

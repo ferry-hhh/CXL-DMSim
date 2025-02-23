@@ -16,25 +16,15 @@ CXLMemCtrl::CXLMemCtrl(const CXLMemCtrlParams &p) :
     dram->setCtrl(this, commandWindow);
 }
 
-void CXLMemCtrl::setPioPort(PioPort<PioDevice>* _pioPort)
+void CXLMemCtrl::setCXLPort(CXLPort<CXLMemory>* _cxlPort)
 {
-    pioPort = _pioPort;
+    cxlPort = _cxlPort;
 }
 
 void
 CXLMemCtrl::init()
 {
     DPRINTF(CXLMemCtrl, "cxl memory controller init");
-}
-
-Tick
-CXLMemCtrl::recvAtomic(PacketPtr pkt)
-{
-    if (!dram->getAddrRange().contains(pkt->getAddr())) {
-        panic("Can't handle address range for packet %s\n", pkt->print());
-    }
-
-    return recvAtomicLogic(pkt, dram);
 }
 
 void
@@ -70,7 +60,7 @@ CXLMemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
         DPRINTF(CXLMemCtrl, "Responding packet to time %#x.. %llu\n", pkt->getAddr(), response_time);
         // queue the packet in the response queue to be sent out after
         // the static latency has passed
-        pioPort->schedTimingResp(pkt, response_time);
+        cxlPort->schedTimingResp(pkt, response_time);
         // warn("cxl cannot send response");
     } else {
         // @todo the packet is going to be deleted, and the MemPacket
@@ -150,7 +140,7 @@ CXLMemCtrl::processRespondEvent(memory::MemInterface* mem_intr,
     if (retry_rd_req) {
         retry_rd_req = false;
         // warn("cxl cannot send response");
-        pioPort->sendRetryReq();
+        cxlPort->sendRetryReq();
     }
 }
 
@@ -421,7 +411,7 @@ CXLMemCtrl::processNextReqEvent(memory::MemInterface* mem_intr,
 
     if (retry_wr_req && mem_intr->writeQueueSize < writeBufferSize) {
         retry_wr_req = false;
-        pioPort->sendRetryReq();
+        cxlPort->sendRetryReq();
         // warn("cxl cannot send response");
     }
 }

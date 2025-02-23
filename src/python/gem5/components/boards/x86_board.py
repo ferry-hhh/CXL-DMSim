@@ -141,7 +141,7 @@ class X86Board(AbstractSystemBoard, KernelDiskWorkload):
 
             # Configure CXLBridge
             if self._is_asic:
-                self.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=52, resp_fifo_depth=52)
+                self.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=128, resp_fifo_depth=128)
             else:
                 self.bridge = CXLBridge(bridge_lat="50ns", host_proto_proc_lat="14ns", req_fifo_depth=48, resp_fifo_depth=48)
             self.bridge.mem_side_port = self.get_io_bus().cpu_side_ports
