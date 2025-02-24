@@ -403,8 +403,6 @@ class System : public SimObject, public PCEventScope
 
     AddrRangeList ShadowRomRanges;
 
-    AddrRange cxlMemRange;
-
     enums::MemoryMode memoryMode;
 
     const Addr _cacheLineSize;

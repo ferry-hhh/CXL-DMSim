@@ -103,7 +103,7 @@ class CXLBridge : public ClockedObject
         const Cycles bridge_lat;
 
         /** Conversion delay of cxl protocol in bridge*/        
-        const Cycles host_proto_proc_lat;
+        const Cycles proto_proc_lat;
 
         /** Address ranges to pass through the bridge */
         const AddrRangeList ranges;
@@ -158,12 +158,12 @@ class CXLBridge : public ClockedObject
          * @param _memSidePort the request port on the other
          *                       side of the bridge
          * @param _bridge_lat the delay in cycles from receiving to sending
-         * @param _host_proto_proc_lat the conversion delay of cxl protocol in bridge
+         * @param _proto_proc_lat the conversion delay of cxl protocol in bridge
          * @param _resp_limit the size of the response queue
          * @param _ranges a number of address ranges to forward
          */
         BridgeResponsePort(const std::string& _name, CXLBridge& _bridge,
-                        BridgeRequestPort& _memSidePort, Cycles _bridge_lat, Cycles _host_proto_proc_lat,
+                        BridgeRequestPort& _memSidePort, Cycles _bridge_lat, Cycles _proto_proc_lat,
                         int _resp_limit, std::vector<AddrRange> _ranges);
 
         /**
@@ -242,7 +242,7 @@ class CXLBridge : public ClockedObject
         const Cycles bridge_lat;
 
         /** Conversion delay of cxl protocol in bridge*/        
-        const Cycles host_proto_proc_lat;
+        const Cycles proto_proc_lat;
 
         /**
          * Request packet queue. Request packets are held in this
@@ -275,12 +275,12 @@ class CXLBridge : public ClockedObject
          * @param _cpuSidePort the response port on the other side of
          * the bridge
          * @param _bridge_lat the delay in cycles from receiving to sending
-         * @param _host_proto_proc_lat the conversion delay of cxl protocol in bridge
+         * @param _proto_proc_lat the conversion delay of cxl protocol in bridge
          * @param _req_limit the size of the request queue
          */
         BridgeRequestPort(const std::string& _name, CXLBridge& _bridge,
                          BridgeResponsePort& _cpuSidePort, Cycles _bridge_lat,
-                         Cycles _host_proto_proc_lat, int _req_limit);
+                         Cycles _proto_proc_lat, int _req_limit);
 
         /**
          * Is this side blocked from accepting new request packets.

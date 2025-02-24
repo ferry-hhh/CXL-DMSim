@@ -58,30 +58,29 @@ namespace gem5
 CXLBridge::BridgeResponsePort::BridgeResponsePort(const std::string& _name,
                                          CXLBridge& _bridge,
                                          BridgeRequestPort& _memSidePort,
-                                         Cycles _bridge_lat, Cycles _host_proto_proc_lat,
+                                         Cycles _bridge_lat, Cycles _proto_proc_lat,
                                          int _resp_limit, std::vector<AddrRange> _ranges)
     : ResponsePort(_name), bridge(_bridge),
       memSidePort(_memSidePort), bridge_lat(_bridge_lat),
-      host_proto_proc_lat(_host_proto_proc_lat),
+      proto_proc_lat(_proto_proc_lat),
       ranges(_ranges.begin(), _ranges.end()),
       outstandingResponses(0), retryReq(false), respQueueLimit(_resp_limit),
       sendEvent([this]{ trySendTiming(); }, _name)
 {
     for (auto i=ranges.begin(); i!=ranges.end(); i++)
         DPRINTF(CXLMemory, "BridgeResponsePort.ranges = %s\n", i->to_string());
-    auto it = ranges.begin();
-    ++it;
-    cxl_range = *it;
+
+    cxl_range = ranges.back();
     DPRINTF(CXLMemory, "cxl_mem_start = 0x%lx, cxl_mem_end = 0x%lx\n", cxl_range.start(), cxl_range.end());
 }
 
 CXLBridge::BridgeRequestPort::BridgeRequestPort(const std::string& _name,
                                            CXLBridge& _bridge,
                                            BridgeResponsePort& _cpuSidePort,
-                                           Cycles _bridge_lat, Cycles _host_proto_proc_lat, int _req_limit)
+                                           Cycles _bridge_lat, Cycles _proto_proc_lat, int _req_limit)
     : RequestPort(_name), bridge(_bridge),
       cpuSidePort(_cpuSidePort),
-      bridge_lat(_bridge_lat), host_proto_proc_lat(_host_proto_proc_lat), reqQueueLimit(_req_limit),
+      bridge_lat(_bridge_lat), proto_proc_lat(_proto_proc_lat), reqQueueLimit(_req_limit),
       sendEvent([this]{ trySendTiming(); }, _name)
 {
 }
@@ -89,12 +88,12 @@ CXLBridge::BridgeRequestPort::BridgeRequestPort(const std::string& _name,
 CXLBridge::CXLBridge(const Params &p)
     : ClockedObject(p),
       cpuSidePort(p.name + ".cpu_side_port", *this, memSidePort,
-                ticksToCycles(p.bridge_lat), ticksToCycles(p.host_proto_proc_lat), p.resp_fifo_depth, p.ranges),
+                ticksToCycles(p.bridge_lat), ticksToCycles(p.proto_proc_lat), p.resp_fifo_depth, p.ranges),
       memSidePort(p.name + ".mem_side_port", *this, cpuSidePort,
-                ticksToCycles(p.bridge_lat), ticksToCycles(p.host_proto_proc_lat), p.req_fifo_depth)
+                ticksToCycles(p.bridge_lat), ticksToCycles(p.proto_proc_lat), p.req_fifo_depth)
 {
-    DPRINTF(CXLMemory, "p.bridge_lat=%ld, ticksToCycles(p.bridge_lat)=%ld, p.host_proto_proc_lat=%ld, ticksToCycles(p.host_proto_proc_lat)=%ld\n",
-            p.bridge_lat, ticksToCycles(p.bridge_lat), p.host_proto_proc_lat, ticksToCycles(p.host_proto_proc_lat));
+    DPRINTF(CXLMemory, "p.bridge_lat=%ld, ticksToCycles(p.bridge_lat)=%ld, p.proto_proc_lat=%ld, ticksToCycles(p.proto_proc_lat)=%ld\n",
+            p.bridge_lat, ticksToCycles(p.bridge_lat), p.proto_proc_lat, ticksToCycles(p.proto_proc_lat));
 }
 
 Port &
@@ -149,7 +148,7 @@ CXLBridge::BridgeRequestPort::recvTimingResp(PacketPtr pkt)
     pkt->headerDelay = pkt->payloadDelay = 0;
     auto total_delay = bridge_lat;
     if (pkt->getAddr() >= cpuSidePort.cxl_range.start() && pkt->getAddr() < cpuSidePort.cxl_range.end()) {
-        total_delay = bridge_lat + host_proto_proc_lat;
+        total_delay = bridge_lat + proto_proc_lat;
         if (pkt->cxl_cmd == MemCmd::S2MDRS) {
             assert(pkt->isRead());
         }
@@ -216,7 +215,7 @@ CXLBridge::BridgeResponsePort::recvTimingReq(PacketPtr pkt)
             pkt->headerDelay = pkt->payloadDelay = 0;
             auto total_delay = bridge_lat;
             if (pkt->getAddr() >= cxl_range.start() && pkt->getAddr() < cxl_range.end()) {
-                total_delay = bridge_lat + host_proto_proc_lat;
+                total_delay = bridge_lat + proto_proc_lat;
                 if (pkt->isRead())
                     pkt->cxl_cmd = MemCmd::M2SReq;
                 else if(pkt->isWrite())
@@ -388,9 +387,9 @@ CXLBridge::BridgeResponsePort::recvAtomic(PacketPtr pkt)
         else
             DPRINTF(CXLMemory, "the cmd of packet is %s, not a read or write.\n", pkt->cmd.toString());
         Tick access_delay = memSidePort.sendAtomic(pkt);
-        Tick total_delay = (bridge_lat + host_proto_proc_lat) * bridge.clockPeriod() + access_delay;
-        DPRINTF(CXLMemory, "bridge latency=%ld, bridge.clockPeriod=%ld, access_delay=%ld, host_proto_proc_lat=%ld, total=%ld\n",
-            bridge_lat, bridge.clockPeriod(), access_delay, host_proto_proc_lat, total_delay);
+        Tick total_delay = (bridge_lat + proto_proc_lat) * bridge.clockPeriod() + access_delay;
+        DPRINTF(CXLMemory, "bridge latency=%ld, bridge.clockPeriod=%ld, access_delay=%ld, proto_proc_lat=%ld, total=%ld\n",
+            bridge_lat, bridge.clockPeriod(), access_delay, proto_proc_lat, total_delay);
         return total_delay;
     }
     else {

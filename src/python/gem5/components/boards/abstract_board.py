@@ -81,7 +81,6 @@ class AbstractBoard:
         memory: "AbstractMemorySystem",
         cache_hierarchy: Optional["AbstractCacheHierarchy"],
         cxl_memory: "AbstractMemorySystem",
-        cxl_mem_size: str,
         is_asic: bool
     ) -> None:
         """
@@ -110,7 +109,6 @@ class AbstractBoard:
 
         # Set the CXL memory size and whether the device is an ASIC or not.
         self.cxl_memory = cxl_memory
-        self._cxl_mem_size = cxl_mem_size
         self._is_asic = is_asic
         # This variable determines whether the board is to be executed in
         # full-system or syscall-emulation mode. This is set when the workload

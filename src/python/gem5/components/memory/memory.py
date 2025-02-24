@@ -100,6 +100,7 @@ class ChanneledMemory(AbstractMemorySystem):
 
         if size:
             size = _try_convert(size, str)
+            self._size_str = size
 
         if addr_mapping:
             addr_mapping = _try_convert(addr_mapping, str)
@@ -188,6 +189,9 @@ class ChanneledMemory(AbstractMemorySystem):
     @overrides(AbstractMemorySystem)
     def get_size(self) -> int:
         return self._size
+    
+    def get_size_str(self) -> str:
+        return self._size_str
 
     @overrides(AbstractMemorySystem)
     def set_memory_range(self, ranges: List[AddrRange]) -> None:

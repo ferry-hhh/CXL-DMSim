@@ -45,7 +45,6 @@
 #include "params/BasicPioDevice.hh"
 #include "params/PioDevice.hh"
 #include "sim/clocked_object.hh"
-#include "debug/CXLMemory.hh"
 
 namespace gem5
 {
@@ -89,43 +88,6 @@ class PioPort : public SimpleTimingPort
   public:
     PioPort(Device *dev) :
         SimpleTimingPort(dev->name() + ".pio", dev), device(dev)
-    {}
-};
-
-template <class Device>
-class CXLPort : public SimpleTimingPort
-{
-  protected:
-    Device* device;
-
-    Tick recvAtomic(PacketPtr pkt) override
-    {
-        // Technically the packet only reaches us after the header delay,
-        // and typically we also need to deserialise any payload.
-        Tick receive_delay = pkt->headerDelay + pkt->payloadDelay;
-        pkt->headerDelay = pkt->payloadDelay = 0;
-
-        const Tick delay =
-            pkt->isRead() ? device->read(pkt) : device->write(pkt);
-        return delay + receive_delay;
-    }
-
-    bool recvTimingReq(PacketPtr pkt) override
-    {
-        DPRINTF(CXLMemory, "recvTimingReq start\n");
-        bool is_finished = pkt->isRead() ? device->read_timing(pkt) : device->write_timing(pkt);
-        DPRINTF(CXLMemory, "recvTimingReq done with %s\n", is_finished ? "true" : "false");
-        return is_finished;
-    }
-
-    AddrRangeList getAddrRanges() const override
-    {
-        return device->getAddrRanges();
-    }
-
-  public:
-    CXLPort(Device* dev) 
-        : SimpleTimingPort(dev->name() + ".pio", dev), device(dev) 
     {}
 };
 

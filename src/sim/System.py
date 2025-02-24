@@ -86,10 +86,6 @@ class System(SimObject):
         [], "Ranges that constitute main memory"
     )
 
-    cxl_mem_range = Param.AddrRange(AddrRange(Addr("4GB"), size="2GB"), 
-        "cxl.mem protocol processing's address range for device"
-    )
-
     # The ranges backed by a shadowed ROM
     shadow_rom_ranges = VectorParam.AddrRange(
         [], "Ranges  backed by a shadowed ROM"

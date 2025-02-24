@@ -6,9 +6,19 @@ class CXLMemory(PciDevice):
     type = 'CXLMemory'
     cxx_header = "dev/storage/cxl_memory.hh"
     cxx_class = 'gem5::CXLMemory'
-    ctrl = Param.CXLMemCtrl("Cxl Memory Controller")
-    device_proto_proc_lat = Param.Latency('15ns', "Latency of the CXL controller processing CXL.mem sub-protocol packets")
-    cxl_mem_range = Param.AddrRange(AddrRange(Addr("4GB"), size="2GB"), "CXL expander memory range that can be identified as system memory")
+
+    cxl_rsp_port = ResponsePort(
+        "This port sends responses to and receives requests from the Host"
+    )
+    mem_req_port = RequestPort(
+        "This port sends requests to and receives responses from the back-end memory media"
+    )
+
+    rsp_size = Param.Unsigned(48, "The number of responses to buffer")
+    req_size = Param.Unsigned(48, "The number of requests to buffer")
+    
+    proto_proc_lat = Param.Latency("15ns", "Latency of the CXL controller processing CXL.mem sub-protocol packets")
+    cxl_mem_range = Param.AddrRange("2GB", "CXL expander memory range that can be identified as system memory")
 
     VendorID = 0x8086
     DeviceID = 0X7890
@@ -22,5 +32,5 @@ class CXLMemory(PciDevice):
     InterruptPin = 0x01
 
     # Primary
-    BAR0 = PciMemBar(size='4GB')
+    BAR0 = PciMemBar(size='2GB')
     BAR1 = PciMemUpperBar()
