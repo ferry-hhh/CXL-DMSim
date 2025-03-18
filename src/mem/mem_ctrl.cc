@@ -266,7 +266,8 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
             mem_pkt->burstHelper = burst_helper;
 
             assert(!readQueueFull(1));
-            stats.rdQLenPdf[totalReadQueueSize + respQueue.size()]++;
+            // stats.rdQLenPdf[totalReadQueueSize + respQueue.size()]++;
+            stats.rdQLenPdf.sample(totalReadQueueSize + respQueue.size());
 
             DPRINTF(MemCtrl, "Adding to read queue\n");
 
@@ -339,7 +340,8 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
             mem_intr->setupRank(mem_pkt->rank, false);
 
             assert(totalWriteQueueSize < writeBufferSize);
-            stats.wrQLenPdf[totalWriteQueueSize]++;
+            // stats.wrQLenPdf[totalWriteQueueSize]++;
+            stats.wrQLenPdf.sample(totalWriteQueueSize);
 
             DPRINTF(MemCtrl, "Adding to write queue\n");
 
@@ -1218,10 +1220,8 @@ MemCtrl::CtrlStats::CtrlStats(MemCtrl &_ctrl)
     ADD_STAT(writePktSize, statistics::units::Count::get(),
              "Write request sizes (log2)"),
 
-    ADD_STAT(rdQLenPdf, statistics::units::Count::get(),
-             "What read queue length does an incoming req see"),
-    ADD_STAT(wrQLenPdf, statistics::units::Count::get(),
-             "What write queue length does an incoming req see"),
+    ADD_STAT(rdQLenPdf, "What read queue length does an incoming req see"),
+    ADD_STAT(wrQLenPdf, "What write queue length does an incoming req see"),
 
     ADD_STAT(rdPerTurnAround, statistics::units::Count::get(),
              "Reads before turning the bus around for writes"),
@@ -1289,8 +1289,14 @@ MemCtrl::CtrlStats::regStats()
     readPktSize.init(ceilLog2(ctrl.system()->cacheLineSize()) + 1);
     writePktSize.init(ceilLog2(ctrl.system()->cacheLineSize()) + 1);
 
-    rdQLenPdf.init(ctrl.readBufferSize);
-    wrQLenPdf.init(ctrl.writeBufferSize);
+    // rdQLenPdf.init(ctrl.readBufferSize);
+    rdQLenPdf
+        .init(0, 69, 10)
+        .flags(statistics::nozero);
+    // wrQLenPdf.init(ctrl.writeBufferSize);
+    wrQLenPdf
+        .init(0, 69, 10)
+        .flags(statistics::nozero);
 
     rdPerTurnAround
         .init(ctrl.readBufferSize)

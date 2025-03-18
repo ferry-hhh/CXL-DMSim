@@ -44,7 +44,7 @@ import argparse
 import m5
 from gem5.utils.requires import requires
 from gem5.components.boards.x86_board import X86Board
-from gem5.components.memory.single_channel import DIMM_DDR5_4400, SingleChannelDDR4_2400
+from gem5.components.memory.single_channel import DIMM_DDR5_4400, SingleChannelDDR4_3200
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
@@ -69,7 +69,10 @@ parser.add_argument('--test_cmd', type=str, choices=['lmbench_cxl.sh',
                                                      'lmbench_dram.sh', 
                                                      'merci_dram.sh', 
                                                      'merci_cxl.sh', 
-                                                     'merci_dram+cxl.sh'], default='lmbench_cxl.sh', help='Choose a test to run.')
+                                                     'merci_dram+cxl.sh',
+                                                     'stream_dram.sh',
+                                                     'stream_cxl.sh'
+                                                     ], default='lmbench_cxl.sh', help='Choose a test to run.')
 parser.add_argument('--num_cpus', type=int, default=1, help='Number of CPUs')
 parser.add_argument('--cpu_type', type=str, choices=['TIMING', 'O3'], default='TIMING', help='CPU type')
 parser.add_argument('--cxl_mem_type', type=str, choices=['Simple', 'DRAM'], default='DRAM', help='CXL memory type')
@@ -90,7 +93,10 @@ cache_hierarchy = PrivateL1PrivateL2SharedL3CacheHierarchy(
 
 # Setup the system memory.
 memory = DIMM_DDR5_4400(size="3GB")
-cxl_memory = DIMM_DDR5_4400(size="4GB")
+if args.is_asic:
+    cxl_memory = DIMM_DDR5_4400(size="8GB")
+else:
+    cxl_memory = SingleChannelDDR4_3200(size="8GB")
 # Here we setup the processor. This is a special switchable processor in which
 # a starting core type and a switch core type must be specified. Once a
 # configuration is instantiated a user may call `processor.switch()` to switch
@@ -128,15 +134,13 @@ command = (
     "m5 exit;"
     + "numactl -H;"
     + "m5 resetstats;"
-    # + "/home/cxl_benchmark/" + args.test_cmd + ";"
-    + "/home/cxl_benchmark/stream_cxl.sh;"
-    # + "./mlc_test3.sh;"
+    + "/home/cxl_benchmark/" + args.test_cmd + ";"
 )
 
 # Please modify the paths of kernel and disk_image according to the location of your files.
 board.set_kernel_disk_workload(
-    kernel=KernelResource(local_path='/home/wyj/code/fs_image/vmlinux_20240920'),
-    disk_image=DiskImageResource(local_path='/home/wyj/code/fs_image/parsec.img'),
+    kernel=KernelResource(local_path='/home/xxx/code/fs_image/vmlinux_20240920'),
+    disk_image=DiskImageResource(local_path='/home/xxx/code/fs_image/parsec.img'),
     readfile_contents=command,
 )
 

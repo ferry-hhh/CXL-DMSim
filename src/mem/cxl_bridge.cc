@@ -90,10 +90,49 @@ CXLBridge::CXLBridge(const Params &p)
       cpuSidePort(p.name + ".cpu_side_port", *this, memSidePort,
                 ticksToCycles(p.bridge_lat), ticksToCycles(p.proto_proc_lat), p.resp_fifo_depth, p.ranges),
       memSidePort(p.name + ".mem_side_port", *this, cpuSidePort,
-                ticksToCycles(p.bridge_lat), ticksToCycles(p.proto_proc_lat), p.req_fifo_depth)
+                ticksToCycles(p.bridge_lat), ticksToCycles(p.proto_proc_lat), p.req_fifo_depth),      
+      stats(*this)
 {
-    DPRINTF(CXLMemory, "p.bridge_lat=%ld, ticksToCycles(p.bridge_lat)=%ld, p.proto_proc_lat=%ld, ticksToCycles(p.proto_proc_lat)=%ld\n",
-            p.bridge_lat, ticksToCycles(p.bridge_lat), p.proto_proc_lat, ticksToCycles(p.proto_proc_lat));
+}
+
+CXLBridge::CXLBridgeStats::CXLBridgeStats(CXLBridge &_bridge)
+    : statistics::Group(&_bridge),
+
+      ADD_STAT(reqQueFullEvents, statistics::units::Count::get(),
+               "Number of times the request queue has become full"),
+      ADD_STAT(reqRetryCounts, statistics::units::Count::get(),
+               "Number of times the request was sent for retry"),
+      ADD_STAT(rspQueFullEvents, statistics::units::Count::get(),
+               "Number of times the response queue has become full"),
+      ADD_STAT(reqSendFaild, statistics::units::Count::get(),
+               "Number of times the request send failed"),
+      ADD_STAT(rspSendFaild, statistics::units::Count::get(),
+               "Number of times the response send failed"),
+      ADD_STAT(reqSendSucceed, statistics::units::Count::get(),
+               "Number of times the request send succeeded"),
+      ADD_STAT(rspSendSucceed, statistics::units::Count::get(),
+               "Number of times the response send succeeded"),
+      ADD_STAT(reqQueueLenDist, "Request queue length distribution (Count)"),
+      ADD_STAT(rspQueueLenDist, "Response queue length distribution (Count)"),
+      ADD_STAT(rspOutStandDist, "outstandingResponses distribution (Count)"),
+      ADD_STAT(reqQueueLatDist, "Response queue latency distribution (Tick)"),
+      ADD_STAT(rspQueueLatDist, "Response queue latency distribution (Tick)")
+{
+    reqQueueLenDist
+        .init(0, 129, 10)
+        .flags(statistics::nozero);
+    rspQueueLenDist
+        .init(0, 129, 10)
+        .flags(statistics::nozero);
+    rspOutStandDist
+        .init(0, 129, 10)
+        .flags(statistics::nozero);
+    reqQueueLatDist
+        .init(62000, 119999, 1000)
+        .flags(statistics::nozero);
+    rspQueueLatDist
+        .init(62000, 119999, 1000)
+        .flags(statistics::nozero);
 }
 
 Port &
@@ -122,13 +161,23 @@ CXLBridge::init()
 bool
 CXLBridge::BridgeResponsePort::respQueueFull() const
 {
-    return outstandingResponses == respQueueLimit;
+    if (outstandingResponses == respQueueLimit) {
+        bridge.stats.rspQueFullEvents++;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool
 CXLBridge::BridgeRequestPort::reqQueueFull() const
 {
-    return transmitList.size() == reqQueueLimit;
+    if (transmitList.size() == reqQueueLimit) {
+        bridge.stats.reqQueFullEvents++;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool
@@ -203,6 +252,7 @@ CXLBridge::BridgeResponsePort::recvTimingReq(PacketPtr pkt)
 
                 // no need to set retryReq to false as this is already the
                 // case
+                bridge.stats.rspOutStandDist.sample(outstandingResponses);
             }
         }
 
@@ -244,6 +294,7 @@ CXLBridge::BridgeResponsePort::retryStalledReq()
         DPRINTF(Bridge, "Request waiting for retry, now retrying\n");
         retryReq = false;
         sendRetryReq();
+        bridge.stats.reqRetryCounts++;
     }
 }
 
@@ -261,6 +312,8 @@ CXLBridge::BridgeRequestPort::schedTimingReq(PacketPtr pkt, Tick when)
     assert(transmitList.size() != reqQueueLimit);
 
     transmitList.emplace_back(pkt, when);
+
+    bridge.stats.reqQueueLenDist.sample(transmitList.size());
 }
 
 
@@ -276,6 +329,8 @@ CXLBridge::BridgeResponsePort::schedTimingResp(PacketPtr pkt, Tick when)
     }
 
     transmitList.emplace_back(pkt, when);
+
+    bridge.stats.rspQueueLenDist.sample(transmitList.size());
 }
 
 void
@@ -294,7 +349,11 @@ CXLBridge::BridgeRequestPort::trySendTiming()
 
     if (sendTimingReq(pkt)) {
         // send successful
+        bridge.stats.reqSendSucceed++;
+
         transmitList.pop_front();
+
+        bridge.stats.reqQueueLenDist.sample(transmitList.size());
         DPRINTF(Bridge, "trySend request successful\n");
 
         // If there are more packets to send, schedule event to try again.
@@ -310,6 +369,8 @@ CXLBridge::BridgeRequestPort::trySendTiming()
         // request we stalled was waiting for the response queue
         // rather than the request queue we might stall it again
         cpuSidePort.retryStalledReq();
+    } else {
+        bridge.stats.reqSendFaild++;
     }
 
     // if the send failed, then we try again once we receive a retry,
@@ -332,11 +393,17 @@ CXLBridge::BridgeResponsePort::trySendTiming()
 
     if (sendTimingResp(pkt)) {
         // send successful
+        bridge.stats.rspSendSucceed++;
+
         transmitList.pop_front();
+
+        bridge.stats.rspQueueLenDist.sample(transmitList.size());
         DPRINTF(Bridge, "trySend response successful\n");
 
         assert(outstandingResponses != 0);
         --outstandingResponses;
+
+        bridge.stats.rspOutStandDist.sample(outstandingResponses);
 
         // If there are more packets to send, schedule event to try again.
         if (!transmitList.empty()) {
@@ -353,7 +420,10 @@ CXLBridge::BridgeResponsePort::trySendTiming()
             DPRINTF(Bridge, "Request waiting for retry, now retrying\n");
             retryReq = false;
             sendRetryReq();
+            bridge.stats.reqRetryCounts++;
         }
+    } else {
+        bridge.stats.rspSendFaild++;
     }
 
     // if the send failed, then we try again once we receive a retry,
@@ -388,8 +458,6 @@ CXLBridge::BridgeResponsePort::recvAtomic(PacketPtr pkt)
             DPRINTF(CXLMemory, "the cmd of packet is %s, not a read or write.\n", pkt->cmd.toString());
         Tick access_delay = memSidePort.sendAtomic(pkt);
         Tick total_delay = (bridge_lat + proto_proc_lat) * bridge.clockPeriod() + access_delay;
-        DPRINTF(CXLMemory, "bridge latency=%ld, bridge.clockPeriod=%ld, access_delay=%ld, proto_proc_lat=%ld, total=%ld\n",
-            bridge_lat, bridge.clockPeriod(), access_delay, proto_proc_lat, total_delay);
         return total_delay;
     }
     else {

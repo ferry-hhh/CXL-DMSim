@@ -50,11 +50,11 @@ class L1DCache(Cache):
         assoc: int = 8,
         tag_latency: int = 3,
         data_latency: int = 3,
-        response_latency: int = 2,
+        response_latency: int = 1,
         mshrs: int = 16,
         tgts_per_mshr: int = 20,
         write_buffers: int = 16,
-        writeback_clean: bool = False,
+        writeback_clean: bool = True,
         PrefetcherCls: Type[BasePrefetcher] = IndirectMemoryPrefetcher,
     ):
         super().__init__()
@@ -67,4 +67,5 @@ class L1DCache(Cache):
         self.tgts_per_mshr = tgts_per_mshr
         self.write_buffers = write_buffers
         self.writeback_clean = writeback_clean
+        # self.prefetcher = PrefetcherCls(degree=2, queue_size=8,confidence_threshold=70)
         self.prefetcher = PrefetcherCls()

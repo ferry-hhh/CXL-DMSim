@@ -31,7 +31,10 @@ from .dram_interfaces.ddr3 import (
     DDR3_1600_8x8,
     DDR3_2133_8x8,
 )
-from .dram_interfaces.ddr4 import DDR4_2400_8x8
+from .dram_interfaces.ddr4 import (
+    DDR4_2400_8x8,
+    DDR4_3200_16x4,
+)
 from .dram_interfaces.ddr5 import (
     DDR5_4400_4x8,
     DDR5_6400_4x8,
@@ -67,6 +70,15 @@ def SingleChannelDDR4_2400(
     A single channel memory system using DDR4_2400_8x8 based DIMM.
     """
     return ChanneledMemory(DDR4_2400_8x8, 1, 64, size=size)
+
+
+def SingleChannelDDR4_3200(
+    size: Optional[str] = None,
+) -> AbstractMemorySystem:
+    """
+    A single channel memory system using DDR4_3200_16x4 based DIMM.
+    """
+    return ChanneledMemory(DDR4_3200_16x4, 1, 64, size=size)
 
 
 def SingleChannelLPDDR3_1600(

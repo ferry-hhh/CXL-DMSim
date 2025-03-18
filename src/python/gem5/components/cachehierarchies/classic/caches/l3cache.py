@@ -30,7 +30,6 @@ from m5.objects import (
     BasePrefetcher,
     Cache,
     Clusivity,
-    StridePrefetcher,
     L2MultiPrefetcher,
 )
 
@@ -48,7 +47,7 @@ class L3Cache(Cache):
         assoc: int = 16,
         tag_latency: int = 96,
         data_latency: int = 96,
-        response_latency: int = 48,
+        response_latency: int = 1,
         mshrs: int = 384,
         tgts_per_mshr: int = 32,
         write_buffers: int = 256,

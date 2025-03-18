@@ -219,36 +219,22 @@ class SystemXBar(CoherentXBar):
     point_of_unification = True
 
 
-class CXLMemBar(CoherentXBar):
-    width = 16
-
-    # A handful pipeline stages for each portion of the latency
-    # contributions.
-    frontend_latency = 3
-    forward_latency = 4
-    response_latency = 2
-    snoop_response_latency = 4
-
-    # Use a snoop-filter by default
-    snoop_filter = SnoopFilter(lookup_latency=1)
-
-    # This specialisation of the coherent crossbar is to be considered
-    # the point of coherency, as there are no (coherent) downstream
-    # caches.
-    point_of_coherency = True
-
-    # This specialisation of the coherent crossbar is to be considered
-    # the point of unification, it connects the dcache and the icache
-    # to the first level of unified cache. This is needed for systems
-    # without caches where the SystemXBar is also the point of
-    # unification.
-    point_of_unification = True
-
-
 # In addition to the system interconnect, we typically also have one
 # or more on-chip I/O crossbars. Note that at some point we might want
 # to also define an off-chip I/O crossbar such as PCIe.
 class IOXBar(NoncoherentXBar):
+    # 128-bit crossbar by default
+    width = 16
+
+    # Assume a simpler datapath than a coherent crossbar, incuring
+    # less pipeline stages for decision making and forwarding of
+    # requests.
+    frontend_latency = 2
+    forward_latency = 1
+    response_latency = 2
+
+
+class CXLMemBar(NoncoherentXBar):
     # 128-bit crossbar by default
     width = 16
 

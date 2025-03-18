@@ -6,6 +6,7 @@
 #include "base/addr_range.hh"
 #include "base/trace.hh"
 #include "base/types.hh"
+#include "base/statistics.hh"
 #include "dev/pci/device.hh"
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
@@ -30,8 +31,11 @@ class CXLMemory : public PciDevice
         public:
             const Tick tick;
             const PacketPtr pkt;
-
-            DeferredPacket(PacketPtr _pkt, Tick _tick) : tick(_tick), pkt(_pkt)
+            /** When did pkt enter the transmitList */
+            const Tick entryTime;
+            DeferredPacket(PacketPtr _pkt, Tick _tick) : 
+                tick(_tick), pkt(_pkt),
+                entryTime(curTick())
             { }
         };
 
@@ -244,6 +248,29 @@ class CXLMemory : public PciDevice
 
         /** Request port of the CXLMemory. */
         CXLRequestPort memReqPort;
+
+        Tick preRspTick = -1;
+
+        struct CXLCtrlStats : public statistics::Group
+        {
+            CXLCtrlStats(CXLMemory &cxlMemory);
+    
+            statistics::Scalar reqQueFullEvents;
+            statistics::Scalar reqRetryCounts;
+            statistics::Scalar rspQueFullEvents;
+            statistics::Scalar reqSendFaild;
+            statistics::Scalar rspSendFaild;
+            statistics::Scalar reqSendSucceed;
+            statistics::Scalar rspSendSucceed;
+            statistics::Distribution reqQueueLenDist;
+            statistics::Distribution rspQueueLenDist;
+            statistics::Distribution rspOutStandDist;
+            statistics::Distribution reqQueueLatDist;
+            statistics::Distribution rspQueueLatDist;
+            statistics::Distribution memToCXLCtrlRsp;
+        };
+    
+        CXLCtrlStats stats;
 
     public:
         Tick read(PacketPtr pkt) override {

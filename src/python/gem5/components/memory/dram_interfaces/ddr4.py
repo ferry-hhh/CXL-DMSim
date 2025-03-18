@@ -249,3 +249,109 @@ class DDR4_2400_4x16(DDR4_2400_16x4):
     IDD4R = "243mA"
     IDD5 = "280mA"
     IDD3P1 = "41mA"
+
+
+class DDR4_3200_16x4(DDR4_2400_16x4):
+    """
+    A single DDR4-3200 x64 channel (one command and address bus), with
+    timings based on DDR4-3200 specifications in an 16x4 configuration.
+
+    Total channel capacity is 32GiB.
+
+    16 devices/rank * 2 ranks/channel * 1GiB/device = 32GiB/channel
+    """
+
+    # size of device
+    device_size = "1GiB"
+
+    # 16x4 configuration, 16 devices each with a 4-bit interface
+    device_bus_width = 4
+
+    # DDR4 is a BL8 device
+    burst_length = 8
+
+    # Each device has a page (row buffer) size of 512 byte (1K columns x4)
+    device_rowbuffer_size = "512B"
+
+    # 16x4 configuration, so 16 devices
+    devices_per_rank = 16
+
+    # Dual rank configuration
+    ranks_per_channel = 2
+
+    # DDR4 has 4 bank groups for x4 configuration
+    bank_groups_per_rank = 4
+
+    # DDR4 x4/x8 has 16 banks (4 bank groups)
+    banks_per_rank = 16
+
+    # Buffer sizes to accommodate higher bandwidth
+    write_buffer_size = 128
+    read_buffer_size = 64
+
+    # 1600 MHz (DDR4-3200 data rate)
+    tCK = "0.625ns"
+
+    # 8 beats across an x64 interface translates to 4 clocks @ 1600 MHz
+    # tBURST matches CAS-to-CAS delay for different bank groups (tCCD_S)
+    tBURST = "2.5ns"
+
+    # CAS-to-CAS delay for same bank group (tCCD_L)
+    # 5 cycles @ 1600 MHz
+    tCCD_L = "3.125ns"
+
+    # Typical DDR4-3200 22-22-22 timing
+    tRCD = "13.75ns"  # 22 cycles
+    tCL = "13.75ns"   # 22 cycles
+    tRP = "13.75ns"   # 22 cycles
+    tRAS = "32ns"     # Typical value for 8Gb density
+
+    # RRD_S (different bank group): MAX(4 CK, 3.3ns)
+    tRRD = "2.5ns"    # 4 cycles
+
+    # RRD_L (same bank group): MAX(6 CK, 4.9ns)
+    tRRD_L = "3.75ns" # 6 cycles
+
+    # tFAW: MAX(16 CK, 13ns)
+    tXAW = "10ns"     # 16 cycles
+    activation_limit = 4
+
+    # tRFC remains similar for 8Gb density
+    tRFC = "350ns"
+
+    # Write recovery time
+    tWR = "15ns"
+
+    # Average of WTR_S (2.5ns) and WTR_L (5ns)
+    tWTR = "3.75ns"
+
+    # Greater of 4 CK or 7.5 ns (maintain same ns constraint)
+    tRTP = "7.5ns"
+
+    # Same rank bus turnaround: 2 CK @1600 MHz
+    tRTW = "1.25ns"
+
+    # Different rank bus delay: 2 CK @1600 MHz
+    tCS = "1.25ns"
+
+    # Refresh interval (same thermal assumptions)
+    tREFI = "7.8us"
+
+    # Power timing parameters (unchanged from DDR4-2400)
+    tXP = "6ns"
+    tXS = "340ns"
+
+    # Current values (assume similar power characteristics)
+    IDD0 = "43mA"
+    IDD02 = "3mA"
+    IDD2N = "34mA"
+    IDD3N = "38mA"
+    IDD3N2 = "3mA"
+    IDD4W = "103mA"
+    IDD4R = "110mA"
+    IDD5 = "250mA"
+    IDD3P1 = "32mA"
+    IDD2P1 = "25mA"
+    IDD6 = "30mA"
+    VDD = "1.2V"
+    VDD2 = "2.5V"

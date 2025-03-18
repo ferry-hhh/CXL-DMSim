@@ -50,6 +50,7 @@
 #include <deque>
 
 #include "base/types.hh"
+#include "base/statistics.hh"
 #include "mem/port.hh"
 #include "params/CXLBridge.hh"
 #include "sim/clocked_object.hh"
@@ -324,6 +325,26 @@ class CXLBridge : public ClockedObject
 
     /** Request port of the bridge. */
     BridgeRequestPort memSidePort;
+
+    struct CXLBridgeStats : public statistics::Group
+    {
+        CXLBridgeStats(CXLBridge &bridge);
+
+        statistics::Scalar reqQueFullEvents;
+        statistics::Scalar reqRetryCounts;
+        statistics::Scalar rspQueFullEvents;
+        statistics::Scalar reqSendFaild;
+        statistics::Scalar rspSendFaild;
+        statistics::Scalar reqSendSucceed;
+        statistics::Scalar rspSendSucceed;
+        statistics::Distribution reqQueueLenDist;
+        statistics::Distribution rspQueueLenDist;
+        statistics::Distribution rspOutStandDist;
+        statistics::Distribution reqQueueLatDist;
+        statistics::Distribution rspQueueLatDist;
+    };
+
+    CXLBridgeStats stats;
 
   public:
 
