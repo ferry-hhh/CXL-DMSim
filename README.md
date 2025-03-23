@@ -94,3 +94,17 @@ CXL Device is recognized as a CPU-less NUMA node in the system. We provide two w
 2. **Via mmap/memkind**
 
    The CXL device driver provides an mmap system call to allocate CXL memory.
+
+## Citation
+If you find CXL-DMSim useful for your own work, please cite our paper as follows.
+```tex
+@misc{wang2025comprehensivesimulationframeworkcxl,
+      title={A Comprehensive Simulation Framework for CXL Disaggregated Memory}, 
+      author={Yanjing Wang and Lizhou Wu and Wentao Hong and Yang Ou and Zicong Wang and Sunfeng Gao and Jie Zhang and Sheng Ma and Dezun Dong and Xingyun Qi and Mingche Lai and Nong Xiao},
+      year={2025},
+      eprint={2411.02282},
+      archivePrefix={arXiv},
+      primaryClass={cs.ET},
+      url={https://arxiv.org/abs/2411.02282}, 
+}
+```
