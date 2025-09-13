@@ -98,13 +98,15 @@ CXL Device is recognized as a CPU-less NUMA node in the system. We provide two w
 ## Citation
 If you find CXL-DMSim useful for your own work, please cite our paper as follows.
 ```tex
-@misc{wang2025comprehensivesimulationframeworkcxl,
-      title={A Comprehensive Simulation Framework for CXL Disaggregated Memory}, 
-      author={Yanjing Wang and Lizhou Wu and Wentao Hong and Yang Ou and Zicong Wang and Sunfeng Gao and Jie Zhang and Sheng Ma and Dezun Dong and Xingyun Qi and Mingche Lai and Nong Xiao},
-      year={2025},
-      eprint={2411.02282},
-      archivePrefix={arXiv},
-      primaryClass={cs.ET},
-      url={https://arxiv.org/abs/2411.02282}, 
+@ARTICLE{11153390,
+  author={Wang, Yanjing and Wu, Lizhou and Hong, Wentao and Ou, Yang and Wang, Zicong and Gao, Sunfeng and Zhang, Jie and Ma, Sheng and Dong, Dezun and Qi, Xingyun and Lai, Mingche and Xiao, Nong},
+  journal={IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems}, 
+  title={CXL-DMSim: A Full-System CXL Disaggregated Memory Simulator With Comprehensive Silicon Validation}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={1-1},
+  doi={10.1109/TCAD.2025.3607145},
+  url={https://ieeexplore.ieee.org/document/11153390}
 }
 ```
